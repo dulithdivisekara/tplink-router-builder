@@ -414,5 +414,9 @@ def router_reboot(confirm: bool = False, force: bool = False) -> str:
     return "Reboot command sent to router. The router is restarting."
 
 
-if __name__ == "__main__":
+def main():
     server.run()
+
+
+if __name__ == "__main__":
+    main()
