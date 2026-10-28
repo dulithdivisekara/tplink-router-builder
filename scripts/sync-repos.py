@@ -120,6 +120,12 @@ def sync_cli_web():
     if (CLI_DIR / "web" / "tplink-cli_1.0.0_all.deb").exists():
         shutil.copy2(CLI_DIR / "web" / "tplink-cli_1.0.0_all.deb", CLI_WEB_DIR / "tplink-cli_1.0.0_all.deb")
 
+    # Build Debian APT repository
+    apt_script = CLI_WEB_DIR / "scripts" / "build-apt-repo.py"
+    if apt_script.exists():
+        print("Building Debian APT repository in tp-link-cli-web...")
+        run_cmd(["python3", str(apt_script)], cwd=CLI_WEB_DIR)
+
     # Run build script to validate schemas and pre-render
     print("Running build script in tp-link-cli-web...")
     run_cmd(["python3", "scripts/build.py"], cwd=CLI_WEB_DIR)

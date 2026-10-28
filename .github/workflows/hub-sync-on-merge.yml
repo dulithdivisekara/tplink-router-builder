@@ -1,0 +1,27 @@
+name: Hub Sync on Main Merge
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  validate-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Builder Hub
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run Test Suite
+        run: |
+          python3 -m unittest discover tests
+
+      - name: Verify Catalog Extraction
+        run: |
+          python3 scripts/extract-catalog.py
