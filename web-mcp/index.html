@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TP-Link Router MCP Server · Official Specification & Documentation</title>
+  <meta name="description" content="Universal Model Context Protocol (MCP 2.x) Server for TP-Link 4G/LTE Gateways and Broadband Routers. Built for Google Antigravity, Claude Desktop, and Cursor." />
+  <link rel="icon" type="image/svg+xml" href="https://mintcdn.com/mcp/2BMHnlNW5OqOohXZ/favicon.svg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              teal: '#00C4B4',
+              cyan: '#00A499',
+              dark: '#070A0F',
+              card: '#0D131F',
+              border: 'rgba(255, 255, 255, 0.08)'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #070A0F;
+      color: #E2E8F0;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+    .glass-card {
+      background: rgba(13, 19, 31, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card:hover {
+      border-color: rgba(0, 196, 180, 0.35);
+    }
+    .glow-bg {
+      background: radial-gradient(circle at 50% 0%, rgba(0, 196, 180, 0.12) 0%, transparent 60%);
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased flex flex-col selection:bg-brand-teal selection:text-black">
+
+  <!-- Glow effect -->
+  <div class="fixed inset-0 glow-bg pointer-events-none z-0"></div>
+
+  <!-- Navigation -->
+  <header class="sticky top-0 z-50 glass-card border-b border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <a href="#" class="flex items-center space-x-3">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/TPLINK_Logo_2.svg" alt="TP-Link" class="h-6 w-auto" />
+          <span class="text-zinc-500 font-mono text-sm">/</span>
+          <img src="https://mintcdn.com/mcp/2BMHnlNW5OqOohXZ/logo/dark.svg" alt="Model Context Protocol" class="h-6 w-auto" />
+        </a>
+        <span class="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-teal/10 text-brand-teal border border-brand-teal/20">
+          MCP 2.x Compliant
+        </span>
+      </div>
+
+      <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-zinc-400">
+        <a href="#quickstart" class="hover:text-white transition">Quickstart</a>
+        <a href="#tools" class="hover:text-white transition">Tools Catalog</a>
+        <a href="#architecture" class="hover:text-white transition">Architecture</a>
+        <a href="#origin" class="hover:text-white transition">Origin Story</a>
+        <a href="https://tp-link-cli.dulith.me" class="hover:text-white transition">CLI Tool &rarr;</a>
+      </nav>
+
+      <div class="flex items-center space-x-3">
+        <a href="https://github.com/dulithdivisekara/tplink-mcp" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-white border border-brand-border transition">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-grow z-10">
+    <section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 text-center max-w-5xl mx-auto">
+      <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium bg-brand-teal/10 text-brand-teal border border-brand-teal/20 mb-6">
+        <span>✨ Anthropic Model Context Protocol 2.x</span>
+        <span>•</span>
+        <span>Single-Admin Concurrency Safe</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6">
+        Connect AI Copilots Directly to Your <span class="bg-gradient-to-r from-teal-400 to-cyan-300 bg-clip-text text-transparent">TP-Link Router</span>
+      </h1>
+
+      <p class="text-lg sm:text-xl text-zinc-400 max-w-3xl mx-auto mb-10 leading-relaxed">
+        The official Model Context Protocol (MCP) server for TP-Link 4G/LTE gateways and broadband routers. Exposes 18 typed tools to <strong>Google Antigravity</strong>, <strong>Claude Desktop</strong>, and <strong>Cursor</strong> with atomic session leasing, live RF signal telemetry, and disconnection safeguards.
+      </p>
+
+      <!-- Command One-Liner Box -->
+      <div class="max-w-xl mx-auto glass-card rounded-xl p-3 flex items-center justify-between font-mono text-sm shadow-2xl mb-12 border border-brand-border">
+        <div class="flex items-center space-x-3 overflow-hidden text-zinc-300 pl-2">
+          <span class="text-brand-teal select-none">$</span>
+          <span class="truncate">npx -y tplink-mcp</span>
+        </div>
+        <button onclick="navigator.clipboard.writeText('npx -y tplink-mcp'); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000)" class="px-3.5 py-1.5 rounded-lg bg-brand-teal text-black font-semibold text-xs hover:bg-teal-300 transition shrink-0 ml-2">
+          Copy
+        </button>
+      </div>
+
+      <!-- Quick Feature Pill Badges -->
+      <div class="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400 font-medium">
+        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">📡 3GPP RF Signal (RSRP/RSRQ/SNR)</span>
+        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">🔒 Single-Admin Lock Avoidance</span>
+        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">🛡️ Multi-Environment Network Guard</span>
+        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">👥 Connected LAN Devices</span>
+        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">⚡ Disconnection Safeguards (confirm=True)</span>
+      </div>
+    </section>
+
+    <!-- Quickstart / Config Tabs -->
+    <section id="quickstart" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="text-center mb-10">
+        <h2 class="text-3xl font-bold text-white mb-3">1-Minute AI Copilot Integration</h2>
+        <p class="text-zinc-400">Configure your favorite AI agent with the standard MCP stdio configuration.</p>
+      </div>
+
+      <div class="glass-card rounded-2xl overflow-hidden border border-brand-border">
+        <!-- Tab Buttons -->
+        <div class="flex border-b border-brand-border bg-black/40 px-4 pt-3 space-x-2 text-xs font-mono">
+          <button onclick="setTab('claude')" id="tab-claude" class="px-4 py-2 rounded-t-lg font-semibold border-b-2 border-brand-teal text-white bg-zinc-800/50">Claude Desktop</button>
+          <button onclick="setTab('antigravity')" id="tab-antigravity" class="px-4 py-2 rounded-t-lg font-semibold border-b-2 border-transparent text-zinc-400 hover:text-white">Google Antigravity / Cursor</button>
+          <button onclick="setTab('docker')" id="tab-docker" class="px-4 py-2 rounded-t-lg font-semibold border-b-2 border-transparent text-zinc-400 hover:text-white">Docker (ghcr.io)</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="p-6 font-mono text-sm bg-black/60 overflow-x-auto text-zinc-300">
+          <div id="content-claude">
+            <p class="text-xs text-zinc-500 mb-2">// Edit ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\Claude\claude_desktop_config.json (Windows)</p>
+            <pre class="text-emerald-400">{
+  <span class="text-zinc-400">"mcpServers"</span>: {
+    <span class="text-brand-teal">"tplink-mcp"</span>: {
+      <span class="text-zinc-400">"command"</span>: <span class="text-amber-300">"npx"</span>,
+      <span class="text-zinc-400">"args"</span>: [<span class="text-amber-300">"-y"</span>, <span class="text-amber-300">"tplink-mcp"</span>],
+      <span class="text-zinc-400">"env"</span>: {
+        <span class="text-zinc-400">"TPLINK_ROUTER_IP"</span>: <span class="text-amber-300">"http://192.168.1.1"</span>,
+        <span class="text-zinc-400">"TPLINK_PASSWORD"</span>: <span class="text-amber-300">"your_admin_password"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+
+          <div id="content-antigravity" class="hidden">
+            <p class="text-xs text-zinc-500 mb-2">// In Antigravity MCP settings or .cursor/mcp.json</p>
+            <pre class="text-emerald-400">{
+  <span class="text-zinc-400">"mcpServers"</span>: {
+    <span class="text-brand-teal">"tplink-mcp"</span>: {
+      <span class="text-zinc-400">"command"</span>: <span class="text-amber-300">"python3"</span>,
+      <span class="text-zinc-400">"args"</span>: [<span class="text-amber-300">"-m"</span>, <span class="text-amber-300">"tplink_mcp.server"</span>],
+      <span class="text-zinc-400">"env"</span>: {
+        <span class="text-zinc-400">"TPLINK_ROUTER_IP"</span>: <span class="text-amber-300">"http://192.168.1.1"</span>,
+        <span class="text-zinc-400">"TPLINK_PASSWORD"</span>: <span class="text-amber-300">"your_admin_password"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+
+          <div id="content-docker" class="hidden">
+            <p class="text-xs text-zinc-500 mb-2">// Standalone zero-install container from GitHub Packages ($0 cost)</p>
+            <pre class="text-emerald-400">docker run -i --rm --network host \
+  -e TPLINK_ROUTER_IP="http://192.168.1.1" \
+  -e TPLINK_PASSWORD="your_admin_password" \
+  ghcr.io/dulithdivisekara/tplink-mcp:latest</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold text-white mb-3">Enterprise Agentic Architecture</h2>
+        <p class="text-zinc-400 max-w-2xl mx-auto">Designed to resolve the single-admin lock and prevent autonomous AI agents from ever disconnecting themselves.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-card rounded-2xl p-6">
+          <div class="h-10 w-10 rounded-xl bg-teal-500/10 text-brand-teal flex items-center justify-center font-bold text-lg mb-4">1</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Atomic Session Leasing</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">
+            TP-Link gateways enforce a single active admin lock. The <code>SafeSession</code> context manager authenticates, executes the tool, and calls <code>logout()</code> immediately so your browser UI is never kicked.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6">
+          <div class="h-10 w-10 rounded-xl bg-teal-500/10 text-brand-teal flex items-center justify-center font-bold text-lg mb-4">2</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Network Guard Protection</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">
+            Automatically inspects default gateways and Wi-Fi SSIDs. Prevents AI agents from sending router commands if your laptop is currently connected to university Wi-Fi or a mobile hotspot.
+          </p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-6">
+          <div class="h-10 w-10 rounded-xl bg-teal-500/10 text-brand-teal flex items-center justify-center font-bold text-lg mb-4">3</div>
+          <h3 class="text-lg font-semibold text-white mb-2">Disconnection Safeguards</h3>
+          <p class="text-sm text-zinc-400 leading-relaxed">
+            Disruptive actions like <code>router_reboot</code>, <code>router_set_cell_lock</code>, or band switching strictly require <code>confirm=True</code> to prevent an autonomous agent from severing its own remote session.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 18 Typed Tools Catalog -->
+    <section id="tools" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+        <div>
+          <h2 class="text-3xl font-bold text-white mb-2">18 Typed MCP Tools</h2>
+          <p class="text-zinc-400">Strictly typed schemas following official MCP guidelines.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <input type="text" id="toolSearch" oninput="filterTools()" placeholder="Search tools (e.g. signal, sms, reboot)..." class="px-4 py-2 rounded-xl bg-black/50 border border-brand-border text-sm text-white focus:outline-none focus:border-brand-teal w-64" />
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl overflow-hidden border border-brand-border">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm" id="toolsTable">
+            <thead class="bg-black/60 text-xs uppercase font-mono text-zinc-400 border-b border-brand-border">
+              <tr>
+                <th class="py-3.5 px-4">Tool Name</th>
+                <th class="py-3.5 px-4">Type</th>
+                <th class="py-3.5 px-4">Safety Guard</th>
+                <th class="py-3.5 px-4">Functionality</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-brand-border text-zinc-300 font-mono text-xs">
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_status</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Full device telemetry, cellular link state, hardware and firmware versions.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_rf_signal</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Live 3GPP RSRP, RSRQ, SNR, signal bars, EARFCN, and PCI metrics.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_cell_lock</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Locks modem to specific tower EARFCN and PCI to prevent cell hopping.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_lte_band</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Locks modem to specific LTE band (e.g. Band 3 1800MHz or Band 8 900MHz).</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_connected_clients</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Queries active DHCP table: hostnames, IP addresses, MAC addresses, and lease time.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_manage_dhcp_reservation</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Adds, deletes, or lists static DHCP IP address reservations by MAC.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_data_limit</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Returns monthly cellular quota, warning alert threshold, and billing reset date.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_data_limit</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Configures monthly cellular data quota in MB and billing cycle reset day (1-31).</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_wifi_networks</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Returns status, SSIDs, channels, and operational state of 2.4 GHz and 5 GHz radios.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_wifi_radio</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Enables or disables Wi-Fi radio (2.4GHz / 5GHz) or renames active SSID.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_led_status</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Queries physical front-panel LEDs and Night Mode schedule state.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_led_night_mode</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Configures night mode to turn off router LEDs automatically during sleeping hours.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_run_diagnostic</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Exec</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Runs router-side WAN, physical cellular link, and NCSI internet reachability test.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_dns</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Configures custom WAN DNS resolvers (e.g. 8.8.8.8, 8.8.4.4).</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_toggle_ipv6</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Enables or disables IPv6 stack to mitigate dual-stack resolution delays.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_run_ussd</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Exec</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Sends interactive USSD balance code (e.g. *344#, *123#) and parses response.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_read_sms</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
+                <td class="py-3 px-4 text-emerald-400">Safe</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Reads incoming or sent SMS messages from router SIM inbox.</td>
+              </tr>
+              <tr class="hover:bg-white/[0.02]">
+                <td class="py-3 px-4 font-semibold text-brand-teal">router_reboot</td>
+                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-red-500/10 text-red-400">Exec</span></td>
+                <td class="py-3 px-4 text-red-400 font-semibold">confirm=True</td>
+                <td class="py-3 px-4 font-sans text-zinc-400">Initiates graceful hardware reboot of the router.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Origin Story & Attribution -->
+    <section id="origin" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="glass-card rounded-2xl p-8 sm:p-10 border border-brand-border">
+        <div class="flex items-center space-x-3 text-xs font-mono text-brand-teal uppercase tracking-wider mb-3">
+          <span>Author & Architect</span>
+          <span>•</span>
+          <span>SLIIT Malabe</span>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">
+          Engineered by Dulith Divisekara
+        </h2>
+        <p class="text-zinc-400 leading-relaxed mb-4">
+          Conceived and built in <strong>Malabe, Sri Lanka (near the SLIIT Campus area)</strong> out of necessity to stabilize an active <strong>Hutch 4G LTE unlimited 20 Mbps SIM</strong> running in a <strong>TP-Link Archer MR200 v5</strong> router.
+        </p>
+        <p class="text-zinc-400 leading-relaxed mb-6">
+          To overcome tower congestion and high bufferbloat, this server exposes live 3GPP RF telemetry, enables manual cell and band locking, and enforces an automatic <strong>Network Guard</strong> to prevent AI agents from ever executing commands when connected to campus Wi-Fi or mobile hotspots.
+        </p>
+        <div class="flex items-center space-x-4">
+          <a href="https://github.com/dulithdivisekara" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-brand-teal hover:underline flex items-center space-x-1">
+            <span>View GitHub Profile</span>
+            <span>&rarr;</span>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-brand-border glass-card py-8 text-center text-xs text-zinc-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-2">
+        <span>© 2026 Dulith Divisekara. MIT Licensed.</span>
+      </div>
+      <div class="flex items-center space-x-6 text-zinc-400">
+        <a href="https://tp-link-cli.dulith.me" class="hover:text-white transition">TP-Link CLI Tool</a>
+        <a href="https://github.com/dulithdivisekara/tplink-mcp" class="hover:text-white transition">GitHub Repo</a>
+        <a href="https://modelcontextprotocol.io" class="hover:text-white transition">Model Context Protocol</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function setTab(tab) {
+      ['claude', 'antigravity', 'docker'].forEach(t => {
+        document.getElementById('content-' + t).classList.add('hidden');
+        document.getElementById('tab-' + t).classList.remove('border-brand-teal', 'text-white', 'bg-zinc-800/50');
+        document.getElementById('tab-' + t).classList.add('border-transparent', 'text-zinc-400');
+      });
+      document.getElementById('content-' + tab).classList.remove('hidden');
+      document.getElementById('tab-' + tab).classList.add('border-brand-teal', 'text-white', 'bg-zinc-800/50');
+      document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-zinc-400');
+    }
+
+    function filterTools() {
+      const q = document.getElementById('toolSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#toolsTable tbody tr');
+      rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = text.includes(q) ? '' : 'none';
+      });
+    }
+  </script>
+</body>
+</html>
