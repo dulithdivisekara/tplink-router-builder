@@ -13,7 +13,7 @@ from tplink_router.core.config import ConfigManager
 from tplink_router.core.network_guard import NetworkGuard
 from tplink_router.core.session import SafeSession
 
-server = MCPServer("universal-tplink-mcp")
+server = MCPServer("tplink-mcp")
 
 
 def _get_client_and_verify(force: bool = False):
