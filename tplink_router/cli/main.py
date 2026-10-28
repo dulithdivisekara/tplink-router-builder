@@ -14,11 +14,19 @@ from tplink_router.cli.repl import run_repl
 
 
 def get_client(args: argparse.Namespace) -> Any:
+    raw_cookie = getattr(args, "cookie", None)
+    if raw_cookie == "PROMPT":
+        print("Paste your browser session cookie or Netscape cookie block below:")
+        try:
+            raw_cookie = input("Cookie: ").strip()
+        except EOFError:
+            raw_cookie = None
+
     cfg = ConfigManager().load(
         cli_host=getattr(args, "host", None),
         cli_username=getattr(args, "username", None),
         cli_password=getattr(args, "password", None),
-        cli_cookie=getattr(args, "cookie", None),
+        cli_cookie=raw_cookie,
     )
 
     host = cfg["host"]
@@ -116,35 +124,77 @@ def cmd_cell_lock(args: argparse.Namespace):
             print("Cell Lock is only supported on cellular MR models.")
             return
 
-        if args.enable:
-            if not args.earfcn or not args.pci:
+        if getattr(args, "enable", False):
+            if not getattr(args, "earfcn", None) or not getattr(args, "pci", None):
                 print("\033[91mError: Both --earfcn and --pci are required when enabling Cell Lock.\033[0m")
                 sys.exit(1)
             client.set_cell_lock(True, args.earfcn, args.pci)
             print(f"\033[92mCell Lock applied to EARFCN {args.earfcn}, PCI {args.pci}!\033[0m")
-        elif args.disable:
+        elif getattr(args, "disable", False):
             client.set_cell_lock(False)
             print("\033[92mCell Lock disabled (Auto roaming restored).\033[0m")
         else:
             lock = client.get_cell_lock()
-            print("\n\033[1mCell Lock Status:\033[0m")
-            print(f"  Enabled : {lock.enabled}")
-            print(f"  EARFCN  : {lock.earfcn}")
-            print(f"  PCI     : {lock.pci}")
-            print(f"  CID     : {lock.cid}\n")
+            if getattr(args, "json", False):
+                import dataclasses
+                print(json.dumps(dataclasses.asdict(lock), indent=2))
+                return
+            print("\n" + "=" * 55)
+            print("  \033[1mLTE CELL LOCK STATUS\033[0m")
+            print("=" * 55)
+            if lock.enabled:
+                print(f"Status        : \033[92mLOCKED (Targeting Cell Tower)\033[0m")
+                print(f"Target EARFCN : {lock.earfcn}")
+                print(f"Target PCI    : {lock.pci}")
+                if lock.cid:
+                    print(f"Cell ID (CID) : {lock.cid}")
+                if lock.freq:
+                    print(f"Frequency     : {lock.freq}")
+            else:
+                print(f"Status        : \033[93mDisabled (Auto-Roaming Active)\033[0m")
+                print("Router automatically chooses the strongest carrier cell.")
+            print("-" * 55)
+            print("Commands:")
+            print("  Lock tower   : tplink-cli cell-lock --enable --earfcn <earfcn> --pci <pci>")
+            print("  Restore auto : tplink-cli cell-lock --disable")
+            print("=" * 55 + "\n")
 
 
 def cmd_dns(args: argparse.Namespace):
     client = get_client(args)
     with SafeSession(client):
-        if args.action == "set":
+        action = getattr(args, "action", None)
+        if action == "set":
             primary = args.primary
-            secondary = args.secondary or "8.8.8.8"
+            secondary = getattr(args, "secondary", "8.8.8.8") or "8.8.8.8"
             client.set_dns(primary, secondary)
             print(f"\033[92mDNS configured to {primary}, {secondary}\033[0m")
         else:
-            v4, _ = client.get_wan_config()
-            print(f"Active DNS: {v4.dns}")
+            v4, v6 = client.get_wan_config()
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "ipv4_dns": v4.dns,
+                    "ipv6_dns": v6.dns,
+                    "gateway": v4.gateway,
+                    "wan_ip": v4.ip
+                }, indent=2))
+                return
+            print("\n" + "=" * 55)
+            print("  \033[1mROUTER DNS CONFIGURATION\033[0m")
+            print("=" * 55)
+            if v4.dns:
+                print(f"Active IPv4 DNS : \033[1m{', '.join(v4.dns)}\033[0m")
+            else:
+                print("Active IPv4 DNS : Default ISP Assigned")
+            if v6.dns:
+                print(f"Active IPv6 DNS : {', '.join(v6.dns)}")
+            print(f"WAN IP Address  : {v4.ip or 'Disconnected'}")
+            print(f"Default Gateway : {v4.gateway or 'N/A'}")
+            print("-" * 55)
+            print("To customize DNS servers:")
+            print("  tplink-cli dns set 1.1.1.1 1.0.0.1    (Cloudflare)")
+            print("  tplink-cli dns set 8.8.8.8 8.8.4.4    (Google)")
+            print("=" * 55 + "\n")
 
 
 def cmd_ipv6(args: argparse.Namespace):
@@ -224,7 +274,8 @@ def cmd_profile_check(args: argparse.Namespace):
 
 def cmd_config(args: argparse.Namespace):
     cfg_mgr = ConfigManager()
-    if args.subcommand == "set-password":
+    subcommand = getattr(args, "subcommand", None) or "show"
+    if subcommand == "set-password":
         pwd = args.password
         if not pwd:
             pwd = getpass.getpass("Enter router admin password to save: ")
@@ -233,7 +284,7 @@ def cmd_config(args: argparse.Namespace):
         ssid = args.expected_ssid or ""
         cfg_mgr.save(password=pwd, host=host, username=username, expected_ssid=ssid)
         print(f"\033[92mConfiguration securely saved to {cfg_mgr.config_file} (mode 0600).\033[0m")
-    elif args.subcommand == "set-cookie":
+    elif subcommand == "set-cookie":
         cookie_input = getattr(args, "cookie", None)
         cookie_file = getattr(args, "file", None)
         if cookie_file:
@@ -267,10 +318,10 @@ def cmd_config(args: argparse.Namespace):
         cfg_mgr.save(session_cookie=extracted)
         masked = f"{extracted[:6]}...{extracted[-6:]}" if len(extracted) > 12 else extracted
         print(f"\033[92mSession cookie (JSESSIONID: {masked}) successfully saved to {cfg_mgr.config_file}.\033[0m")
-    elif args.subcommand == "clear-cookie":
+    elif subcommand == "clear-cookie":
         cfg_mgr.save(session_cookie="")
         print(f"\033[92mStored session cookie cleared from {cfg_mgr.config_file}.\033[0m")
-    elif args.subcommand == "show":
+    elif subcommand == "show":
         cfg = cfg_mgr.load()
         has_pwd = bool(cfg.get("password"))
         cookie_val = cfg.get("session_cookie")
@@ -282,6 +333,33 @@ def cmd_config(args: argparse.Namespace):
         print(f"Expected SSID  : {cfg.get('expected_ssid') or '[Any]'}")
         print(f"Password       : {'[STORED - ' + str(len(cfg['password'])) + ' chars]' if has_pwd else '[NOT SET]'}")
         print(f"Session Cookie : {masked_cookie if has_cookie else '[NOT SET]'}")
+
+
+def cmd_cookie(args: argparse.Namespace):
+    cfg_mgr = ConfigManager()
+    cookie_val = getattr(args, "cookie_val", None)
+    if not cookie_val:
+        cfg = cfg_mgr.load()
+        c = cfg.get("session_cookie")
+        if c:
+            masked = f"{c[:6]}...{c[-6:]}" if len(c) > 12 else c
+            print(f"\n\033[1mCurrent Session Cookie:\033[0m {masked} (JSESSIONID)")
+            print(f"Saved in: {cfg_mgr.config_file}\n")
+        else:
+            print("\n\033[93mNo session cookie currently stored.\033[0m")
+        print("To save a new cookie:")
+        print("  tplink-cli cookie <cookie_string_or_netscape_block>")
+        print("  tplink-cli config set-cookie --file <cookies.txt>\n")
+        return
+
+    from tplink_router.core.cookie_parser import extract_jsessionid
+    extracted = extract_jsessionid(cookie_val)
+    if not extracted:
+        print("\033[91mError: Could not extract valid JSESSIONID from input.\033[0m")
+        sys.exit(1)
+    cfg_mgr.save(session_cookie=extracted)
+    masked = f"{extracted[:6]}...{extracted[-6:]}" if len(extracted) > 12 else extracted
+    print(f"\033[92mSession cookie (JSESSIONID: {masked}) successfully saved to {cfg_mgr.config_file}.\033[0m")
 
 
 def cmd_wifi_guard(args: argparse.Namespace):
@@ -410,10 +488,14 @@ def cmd_reservation(args: argparse.Namespace):
             print("DHCP reservations are only supported on MR cellular models.")
             return
 
-        if args.subcommand == "list" or not getattr(args, "subcommand", None):
+        sub = getattr(args, "subcommand", None) or "list"
+        if sub == "list":
             reservations = client.get_dhcp_reservations()
             if getattr(args, "json", False):
                 print(json.dumps(reservations, indent=2))
+                return
+            if not reservations:
+                print("\n  \033[93mNo static DHCP reservations configured.\033[0m\n")
                 return
             print("\n" + "=" * 55)
             print("  \033[1mSTATIC DHCP RESERVATIONS\033[0m")
@@ -424,10 +506,10 @@ def cmd_reservation(args: argparse.Namespace):
                 status = "\033[92mEnabled\033[0m" if r["enabled"] else "\033[93mDisabled\033[0m"
                 print(f"{r['mac']:<20} {r['ip']:<18} {status:<10}")
             print("=" * 55 + "\n")
-        elif args.subcommand == "add":
+        elif sub == "add":
             client.add_dhcp_reservation(args.mac, args.ip)
             print(f"\033[92mReservation added: {args.mac} -> {args.ip}\033[0m")
-        elif args.subcommand == "del":
+        elif sub == "del":
             client.delete_dhcp_reservation(args.mac)
             print(f"\033[92mReservation deleted for MAC {args.mac}\033[0m")
 
@@ -482,13 +564,16 @@ def cmd_wifi(args: argparse.Namespace):
             print(json.dumps(networks, indent=2))
             return
 
-        print("\n" + "=" * 65)
+        print("\n" + "=" * 70)
         print("  \033[1mWIRELESS (WI-FI) NETWORKS\033[0m")
-        print("=" * 65)
+        print("=" * 70)
+        print(f"{'BAND':<10} {'SSID':<24} {'STATE':<12} {'CHANNEL':<10} {'DEVICES':<8}")
+        print("-" * 70)
         for net in networks:
-            status = "\033[92mEnabled\033[0m" if net["enabled"] else "\033[91mDisabled\033[0m"
-            print(f"Band: \033[1m{net['band']}\033[0m  SSID: \033[1m{net['ssid']}\033[0m  State: {status}  Channel: {net['channel']}")
-        print("=" * 65 + "\n")
+            state_str = "\033[92mEnabled\033[0m" if net["enabled"] else "\033[91mDisabled\033[0m"
+            devs = str(net.get("connected_clients", 0))
+            print(f"{net['band']:<10} {net['ssid']:<24} {state_str:<21} {str(net['channel']):<10} {devs:<8}")
+        print("=" * 70 + "\n")
 
 
 def cmd_leds(args: argparse.Namespace):
@@ -542,8 +627,40 @@ def cmd_band(args: argparse.Namespace):
         if not hasattr(client, "set_lte_band"):
             print("Band selection is only supported on MR cellular models.")
             return
-        client.set_lte_band(args.band)
-    print(f"\033[92mLTE band successfully locked to {args.band.upper()}.\033[0m")
+
+        target_band = getattr(args, "band", None)
+        if not target_band:
+            lte = client.get_lte_status()
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "active_band": lte.band,
+                    "earfcn": lte.earfcn,
+                    "pci": lte.pci,
+                    "supported_bands": ["3 (1800MHz)", "8 (900MHz)", "1 (2100MHz)", "40 (2300MHz)", "auto"]
+                }, indent=2))
+                return
+            print("\n" + "=" * 55)
+            print("  \033[1mACTIVE LTE BAND CONFIGURATION\033[0m")
+            print("=" * 55)
+            print(f"Current Active Band : \033[1m{lte.band}\033[0m")
+            if lte.earfcn:
+                print(f"Channel (EARFCN)    : {lte.earfcn} (PCI: {lte.pci or 'N/A'})")
+            print("-" * 55)
+            print("Supported Bands in Sri Lanka:")
+            print("  Band 3  : 1800 MHz (Fastest Hutch / Dialog LTE)")
+            print("  Band 8  : 900 MHz (Best rain penetration & range)")
+            print("  Band 40 : 2300 MHz (High-capacity TDD)")
+            print("  auto    : Automatic network selection")
+            print("-" * 55)
+            print("To lock onto a band:")
+            print("  tplink-cli band 3")
+            print("  tplink-cli band 8")
+            print("  tplink-cli band auto")
+            print("=" * 55 + "\n")
+            return
+
+        client.set_lte_band(target_band)
+    print(f"\033[92mLTE band successfully configured to '{target_band}'.\033[0m")
 
 
 def cmd_calibrate(args: argparse.Namespace):
@@ -581,29 +698,32 @@ def cmd_calibrate(args: argparse.Namespace):
 
 
 def main():
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+
     parser = argparse.ArgumentParser(
         prog="tplink-cli",
-        description="Universal TP-Link Agentic Router Suite (Cross-Platform)"
+        description="Universal TP-Link Agentic Router Suite (Cross-Platform)",
+        parents=[common_parser],
     )
     parser.add_argument("--host", help="Router IP/Host (default: http://192.168.1.1)")
     parser.add_argument("--username", help="Admin username (default: admin)")
     parser.add_argument("--password", help="Admin password (overrides stored config)")
-    parser.add_argument("--cookie", "--session-id", dest="cookie", help="Browser session cookie (JSESSIONID or Netscape format)")
+    parser.add_argument("--cookie", "--session-id", dest="cookie", nargs="?", const="PROMPT", help="Browser session cookie (JSESSIONID or Netscape format)")
     parser.add_argument("--force", action="store_true", help="Bypass Network Guard checks")
-    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # status
-    p_status = subparsers.add_parser("status", help="Show full router & cellular telemetry")
+    p_status = subparsers.add_parser("status", parents=[common_parser], help="Show full router & cellular telemetry")
     p_status.set_defaults(func=cmd_status)
 
     # signal
-    p_sig = subparsers.add_parser("signal", help="Show RF signal metrics (RSRP, RSRQ, SNR)")
+    p_sig = subparsers.add_parser("signal", parents=[common_parser], help="Show RF signal metrics (RSRP, RSRQ, SNR)")
     p_sig.set_defaults(func=cmd_signal)
 
     # cell-lock
-    p_lock = subparsers.add_parser("cell-lock", help="View or configure LTE Cell Lock")
+    p_lock = subparsers.add_parser("cell-lock", parents=[common_parser], help="View or configure LTE Cell Lock")
     p_lock.add_argument("--enable", action="store_true", help="Enable Cell Lock")
     p_lock.add_argument("--disable", action="store_true", help="Disable Cell Lock")
     p_lock.add_argument("--earfcn", help="Target EARFCN channel (e.g. 1550)")
@@ -611,114 +731,119 @@ def main():
     p_lock.set_defaults(func=cmd_cell_lock)
 
     # dns
-    p_dns = subparsers.add_parser("dns", help="Manage router DNS settings")
+    p_dns = subparsers.add_parser("dns", parents=[common_parser], help="Manage router DNS settings")
     dns_sub = p_dns.add_subparsers(dest="action")
-    dns_set = dns_sub.add_parser("set", help="Set DNS servers")
+    dns_set = dns_sub.add_parser("set", parents=[common_parser], help="Set DNS servers")
     dns_set.add_argument("primary", help="Primary DNS (e.g. 8.8.8.8)")
     dns_set.add_argument("secondary", nargs="?", default="1.1.1.1", help="Secondary DNS")
-    dns_show = dns_sub.add_parser("show", help="Show current DNS")
+    dns_show = dns_sub.add_parser("show", parents=[common_parser], help="Show current DNS")
     p_dns.set_defaults(func=cmd_dns)
 
     # ipv6
-    p_ipv6 = subparsers.add_parser("ipv6", help="Toggle IPv6 stack (on/off)")
+    p_ipv6 = subparsers.add_parser("ipv6", parents=[common_parser], help="Toggle IPv6 stack (on/off)")
     p_ipv6.add_argument("state", choices=["on", "off", "enable", "disable"], help="State to set")
     p_ipv6.set_defaults(func=cmd_ipv6)
 
     # ussd
-    p_ussd = subparsers.add_parser("ussd", help="Execute USSD query (e.g. *344# or *123#)")
+    p_ussd = subparsers.add_parser("ussd", parents=[common_parser], help="Execute USSD query (e.g. *344# or *123#)")
     p_ussd.add_argument("code", help="USSD string")
     p_ussd.set_defaults(func=cmd_ussd)
 
     # sms
-    p_sms = subparsers.add_parser("sms", help="Read or send SMS")
+    p_sms = subparsers.add_parser("sms", parents=[common_parser], help="Read or send SMS")
     p_sms.add_argument("--limit", type=int, default=10, help="Max messages to fetch")
     p_sms.add_argument("--folder", choices=["inbox", "sent"], default="inbox", help="SMS folder")
-    p_sms.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     sms_sub = p_sms.add_subparsers(dest="subcommand")
-    sms_list = sms_sub.add_parser("list", help="List SMS messages")
+    sms_list = sms_sub.add_parser("list", parents=[common_parser], help="List SMS messages")
     sms_list.add_argument("--limit", type=int, default=10, help="Max messages to fetch")
     sms_list.add_argument("--folder", choices=["inbox", "sent"], default="inbox", help="SMS folder")
-    sms_list.add_argument("--json", action="store_true", help="Output machine-readable JSON")
-    sms_send = sms_sub.add_parser("send", help="Send SMS")
+    sms_send = sms_sub.add_parser("send", parents=[common_parser], help="Send SMS")
     sms_send.add_argument("recipient", help="Phone number")
     sms_send.add_argument("message", help="Message text")
     p_sms.set_defaults(func=cmd_sms)
 
     # reboot
-    p_reboot = subparsers.add_parser("reboot", help="Reboot the router")
+    p_reboot = subparsers.add_parser("reboot", parents=[common_parser], help="Reboot the router")
     p_reboot.add_argument("-y", "--yes", action="store_true", help="Skip confirmation prompt")
     p_reboot.set_defaults(func=cmd_reboot)
 
     # profile check
-    p_prof = subparsers.add_parser("profile", help="Check active network profile and gateway safety")
+    p_prof = subparsers.add_parser("profile", parents=[common_parser], help="Check active network profile and gateway safety")
     prof_sub = p_prof.add_subparsers(dest="subcommand")
-    prof_check = prof_sub.add_parser("check", help="Check current Wi-Fi SSID and gateway")
+    prof_check = prof_sub.add_parser("check", parents=[common_parser], help="Check current Wi-Fi SSID and gateway")
     prof_check.set_defaults(func=cmd_profile_check)
+    p_prof.set_defaults(func=cmd_profile_check)
 
     # config
-    p_cfg = subparsers.add_parser("config", help="Manage stored credentials")
+    p_cfg = subparsers.add_parser("config", parents=[common_parser], help="Manage stored credentials")
     cfg_sub = p_cfg.add_subparsers(dest="subcommand")
-    cfg_set = cfg_sub.add_parser("set-password", help="Save router admin password securely")
+    cfg_set = cfg_sub.add_parser("set-password", parents=[common_parser], help="Save router admin password securely")
     cfg_set.add_argument("password", nargs="?", help="Admin password (prompts if omitted)")
     cfg_set.add_argument("--expected-ssid", help="Expected Wi-Fi SSID for safety guard")
-    cfg_cookie = cfg_sub.add_parser("set-cookie", help="Save browser session cookie (Netscape or JSESSIONID format)")
+    cfg_cookie = cfg_sub.add_parser("set-cookie", parents=[common_parser], help="Save browser session cookie (Netscape or JSESSIONID format)")
     cfg_cookie.add_argument("cookie", nargs="?", help="Cookie string, Netscape block, or JSESSIONID")
     cfg_cookie.add_argument("--file", "-f", help="Path to Netscape cookies.txt file")
-    cfg_clear = cfg_sub.add_parser("clear-cookie", help="Clear saved session cookie")
-    cfg_show = cfg_sub.add_parser("show", help="Show current configuration")
+    cfg_clear = cfg_sub.add_parser("clear-cookie", parents=[common_parser], help="Clear saved session cookie")
+    cfg_show = cfg_sub.add_parser("show", parents=[common_parser], help="Show current configuration")
     p_cfg.set_defaults(func=cmd_config)
 
+    # cookie (convenient top-level alias)
+    p_cookie = subparsers.add_parser("cookie", parents=[common_parser], help="View or save browser session cookie")
+    p_cookie.add_argument("cookie_val", nargs="?", help="Cookie string, Netscape block, or JSESSIONID")
+    p_cookie.set_defaults(func=cmd_cookie)
+
     # wifi-guard
-    p_wguard = subparsers.add_parser("wifi-guard", help="Verify and optimize Wi-Fi link stability (no Ethernet needed)")
+    p_wguard = subparsers.add_parser("wifi-guard", parents=[common_parser], help="Verify and optimize Wi-Fi link stability (no Ethernet needed)")
     p_wguard.add_argument("--optimize", "--fix", dest="optimize", action="store_true", help="Auto-optimize Wi-Fi stability and elevate NetworkManager priority")
     p_wguard.set_defaults(func=cmd_wifi_guard)
 
     # clients
-    p_clients = subparsers.add_parser("clients", help="List connected LAN devices (IP, MAC, Hostname)")
+    p_clients = subparsers.add_parser("clients", parents=[common_parser], help="List connected LAN devices (IP, MAC, Hostname)")
     p_clients.set_defaults(func=cmd_clients)
 
     # reservation
-    p_resv = subparsers.add_parser("reservation", help="Manage DHCP static IP reservations")
+    p_resv = subparsers.add_parser("reservation", parents=[common_parser], help="Manage DHCP static IP reservations")
     resv_sub = p_resv.add_subparsers(dest="subcommand")
-    resv_list = resv_sub.add_parser("list", help="List all reservations")
-    resv_add = resv_sub.add_parser("add", help="Add DHCP static reservation")
+    resv_list = resv_sub.add_parser("list", parents=[common_parser], help="List all reservations")
+    resv_list.set_defaults(func=cmd_reservation)
+    resv_add = resv_sub.add_parser("add", parents=[common_parser], help="Add DHCP static reservation")
     resv_add.add_argument("mac", help="Device MAC address")
     resv_add.add_argument("ip", help="Reserved IP address")
-    resv_del = resv_sub.add_parser("del", help="Delete DHCP reservation")
+    resv_del = resv_sub.add_parser("del", parents=[common_parser], help="Delete DHCP reservation")
     resv_del.add_argument("mac", help="Device MAC address to remove")
     p_resv.set_defaults(func=cmd_reservation)
 
     # data-limit
-    p_dlim = subparsers.add_parser("data-limit", help="View or set monthly cellular data cap")
+    p_dlim = subparsers.add_parser("data-limit", parents=[common_parser], help="View or set monthly cellular data cap")
     p_dlim.add_argument("--limit", type=int, help="Monthly quota in Megabytes (e.g. 50000 for 50GB)")
     p_dlim.add_argument("--day", type=int, default=1, help="Billing cycle reset day of month (1-31)")
     p_dlim.set_defaults(func=cmd_data_limit)
 
     # wifi
-    p_wifi = subparsers.add_parser("wifi", help="View or configure Wi-Fi radios (2.4GHz / 5GHz)")
+    p_wifi = subparsers.add_parser("wifi", parents=[common_parser], help="View or configure Wi-Fi radios (2.4GHz / 5GHz)")
     p_wifi.add_argument("--band", choices=["2.4GHz", "5GHz", "2.4", "5"], default="2.4GHz", help="Frequency band")
     p_wifi.add_argument("--toggle", choices=["on", "off", "enable", "disable"], help="Turn radio on/off")
     p_wifi.add_argument("--ssid", help="Set new SSID name")
     p_wifi.set_defaults(func=cmd_wifi)
 
     # leds
-    p_leds = subparsers.add_parser("leds", help="Control router LEDs and Night Mode schedule")
+    p_leds = subparsers.add_parser("leds", parents=[common_parser], help="Control router LEDs and Night Mode schedule")
     p_leds.add_argument("--night-mode", choices=["on", "off", "enable", "disable"], help="Toggle night mode schedule")
     p_leds.add_argument("--start", default="22:00", help="Night mode start time (HH:MM)")
     p_leds.add_argument("--end", default="07:00", help="Night mode end time (HH:MM)")
     p_leds.set_defaults(func=cmd_leds)
 
     # diag
-    p_diag = subparsers.add_parser("diag", help="Run router WAN and internet diagnostic test")
+    p_diag = subparsers.add_parser("diag", parents=[common_parser], help="Run router WAN and internet diagnostic test")
     p_diag.set_defaults(func=cmd_diag)
 
     # band
-    p_band = subparsers.add_parser("band", help="Lock modem to specific LTE Band (e.g. 3, 8, 40, auto)")
-    p_band.add_argument("band", help="LTE Band (e.g. 3, 8, 40, or auto)")
+    p_band = subparsers.add_parser("band", parents=[common_parser], help="View or lock LTE Band (e.g. 3, 8, 40, auto)")
+    p_band.add_argument("band", nargs="?", help="LTE Band (e.g. 3, 8, 40, or auto). If omitted, displays active band.")
     p_band.set_defaults(func=cmd_band)
 
     # calibrate
-    p_cal = subparsers.add_parser("calibrate", help="Autonomous RF band calibration & Live Web UI")
+    p_cal = subparsers.add_parser("calibrate", parents=[common_parser], help="Autonomous RF band calibration & Live Web UI")
     p_cal.add_argument("--web", action="store_true", default=True, help="Launch real-time Web UI dashboard")
     p_cal.add_argument("--no-web", dest="web", action="store_false", help="Run in headless terminal mode")
     p_cal.add_argument("--port", type=int, default=8765, help="Web dashboard port (default: 8765)")
@@ -728,7 +853,7 @@ def main():
     p_cal.set_defaults(func=cmd_calibrate)
 
     # repl
-    p_repl = subparsers.add_parser("repl", help="Launch interactive REPL console")
+    p_repl = subparsers.add_parser("repl", parents=[common_parser], help="Launch interactive REPL console")
     p_repl.set_defaults(func=cmd_repl)
 
     parsed_args = parser.parse_args()

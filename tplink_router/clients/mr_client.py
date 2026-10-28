@@ -154,7 +154,13 @@ class TPLinkMRClient:
             ActItem(ActItem.GET, "IGD_DEV_INFO", attrs=["modelName", "description", "softwareVersion", "hardwareVersion"]),
         ]
         res = self.req_act(acts)
-        dev = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
+        raw_dev = res.get("0", {})
+        if isinstance(raw_dev, list) and raw_dev:
+            dev = raw_dev[0]
+        elif isinstance(raw_dev, dict):
+            dev = raw_dev
+        else:
+            dev = {}
         return DeviceInfo(
             model=dev.get("modelName", "Archer MR200"),
             description=dev.get("description", ""),
@@ -234,6 +240,10 @@ class TPLinkMRClient:
             cell_lock=cell_lock,
         )
 
+    def get_cell_lock(self) -> CellLockStatus:
+        """Returns the current LTE Cell Lock status."""
+        return self.get_lte_status().cell_lock
+
     def set_cell_lock(self, enable: bool, earfcn: Optional[Union[str, int]] = None,
                       pci: Optional[Union[str, int]] = None) -> bool:
         attrs = [f"enable={'1' if enable else '0'}"]
@@ -249,22 +259,43 @@ class TPLinkMRClient:
 
     def get_wan_config(self) -> Tuple[IPv4Config, IPv6Config]:
         acts = [
-            ActItem(ActItem.GL, "WAN_IP_CONN", attrs=["connectionStatus", "externalIPAddress", "subnetMask", "defaultGateway", "DNSServers"]),
-            ActItem(ActItem.GL, "WAN_IPv6_CONN", attrs=["enable", "connectionStatus", "IPv6Address", "DNSServers"]),
+            ActItem(ActItem.GL, "WAN_IP_CONN", attrs=["connectionStatus", "name", "enable", "externalIPAddress", "subnetMask", "defaultGateway", "DNSServers"]),
+            ActItem(ActItem.GL, "WAN_IPv6_CONN", attrs=["enable", "connectionStatus", "name", "IPv6Address", "DNSServers"]),
         ]
         res = self.req_act(acts)
-        v4 = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
-        v6 = res.get("1", {}) if isinstance(res.get("1"), dict) else {}
+        raw_v4 = res.get("0", [])
+        if isinstance(raw_v4, dict):
+            raw_v4 = [raw_v4]
+        raw_v6 = res.get("1", [])
+        if isinstance(raw_v6, dict):
+            raw_v6 = [raw_v6]
 
-        dns_servers = [d.strip() for d in v4.get("DNSServers", "").split(",") if d.strip()]
-        dns_v6 = [d.strip() for d in v6.get("DNSServers", "").split(",") if d.strip()]
+        v4 = {}
+        for entry in raw_v4:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("name") == "LTE" or entry.get("connectionStatus") == "Connected" or entry.get("enable") == "1":
+                v4 = entry
+                if entry.get("connectionStatus") == "Connected":
+                    break
+
+        v6 = {}
+        for entry in raw_v6:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("enable") == "1" or entry.get("connectionStatus") == "Connected":
+                v6 = entry
+                break
+
+        dns_servers = [d.strip() for d in v4.get("DNSServers", "").split(",") if d.strip() and d.strip() != "0.0.0.0"]
+        dns_v6 = [d.strip() for d in v6.get("DNSServers", "").split(",") if d.strip() and d.strip() != "::"]
 
         ipv4 = IPv4Config(
             ip=v4.get("externalIPAddress", ""),
             subnet=v4.get("subnetMask", ""),
             gateway=v4.get("defaultGateway", ""),
             dns=dns_servers,
-            status=v4.get("connectionStatus", "Connected"),
+            status=v4.get("connectionStatus", "Connected" if v4.get("externalIPAddress") else "Disconnected"),
         )
         ipv6 = IPv6Config(
             enabled=v6.get("enable") == "1",
@@ -421,6 +452,8 @@ class TPLinkMRClient:
 
         reservations = []
         for e in entries:
+            if not isinstance(e, dict) or not e.get("chaddr"):
+                continue
             reservations.append({
                 "stack": e.get("__stack", "0,0,0,0,0,0"),
                 "mac": (e.get("chaddr") or "").upper(),
@@ -496,7 +529,10 @@ class TPLinkMRClient:
     def get_wifi_status(self) -> List[Dict[str, Any]]:
         """Queries Wi-Fi radios (2.4 GHz and 5 GHz)."""
         acts = [
-            ActItem(ActItem.GL, "LAN_WLAN", attrs=["Name", "Standard", "SSID", "X_TP_Band", "Channel", "Enable", "SSIDAdvertisementEnabled"]),
+            ActItem(ActItem.GL, "LAN_WLAN", attrs=[
+                "name", "standard", "SSID", "X_TP_Band", "channel", "enable",
+                "SSIDAdvertisementEnabled", "totalAssociations", "status"
+            ]),
         ]
         res = self.req_act(acts)
         entries = res.get("0", [])
@@ -505,14 +541,36 @@ class TPLinkMRClient:
 
         networks = []
         for e in entries:
+            if not isinstance(e, dict):
+                continue
+            ssid = e.get("SSID") or ""
+            band = e.get("X_TP_Band") or ""
+            name = e.get("name") or e.get("Name") or ""
+            # Filter out trailing empty sentinel
+            if not ssid and not band and not name:
+                continue
+
+            is_enabled = (
+                e.get("enable") == "1" or
+                e.get("Enable") == "1" or
+                str(e.get("status", "")).lower() == "up"
+            )
+
+            assoc = e.get("totalAssociations", "0")
+            try:
+                assoc_count = int(assoc)
+            except ValueError:
+                assoc_count = 0
+
             networks.append({
-                "name": e.get("Name", ""),
-                "band": e.get("X_TP_Band", ""),
-                "ssid": e.get("SSID", ""),
-                "channel": e.get("Channel", "Auto"),
-                "standard": e.get("Standard", ""),
-                "enabled": e.get("Enable") == "1",
+                "name": name,
+                "band": band or ("5GHz" if "5" in name else "2.4GHz"),
+                "ssid": ssid,
+                "channel": e.get("channel") or e.get("Channel") or "Auto",
+                "standard": e.get("standard") or e.get("Standard") or "",
+                "enabled": is_enabled,
                 "broadcast_ssid": e.get("SSIDAdvertisementEnabled") == "1",
+                "connected_clients": assoc_count,
             })
         return networks
 
@@ -570,9 +628,16 @@ class TPLinkMRClient:
         deadline = time.time() + max_wait_sec
         while time.time() < deadline:
             time.sleep(1.5)
-            res = self.req_act([ActItem(ActItem.GET, "DIAG_TOOL", attrs=["LastResult"])])
-            data = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
-            last_res = data.get("LastResult")
+            res = self.req_act([ActItem(ActItem.GET, "DIAG_TOOL", attrs=["lastResult", "LastResult"])])
+            raw_data = res.get("0", {})
+            if isinstance(raw_data, list) and raw_data:
+                data = raw_data[0]
+            elif isinstance(raw_data, dict):
+                data = raw_data
+            else:
+                data = {}
+
+            last_res = data.get("lastResult") or data.get("LastResult")
             if last_res == "1":
                 return {"status": "Passed", "result_code": 1, "message": "Physical link, WAN IP, and Internet NCSI reachable."}
             elif last_res in ("2", "4"):
