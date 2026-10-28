@@ -4,7 +4,8 @@ import argparse
 import getpass
 import json
 import sys
-from typing import Any
+from typing import Any, Optional
+import requests
 
 from tplink_router.clients.factory import RouterClientFactory
 from tplink_router.core.config import ConfigManager
@@ -39,7 +40,14 @@ def get_client(args: argparse.Namespace) -> Any:
     # Run Network Guard safety check
     is_safe, msg = NetworkGuard.check_safety(target_host=host, expected_ssid=expected_ssid, force=force)
     if not is_safe:
-        print(f"\033[91m[Network Guard Alert] {msg}\033[0m")
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "error": True,
+                "code": "NETWORK_GUARD_BLOCKED",
+                "message": msg
+            }, indent=2), file=sys.stderr)
+        else:
+            print(f"\033[91m[Network Guard Alert] {msg}\033[0m")
         sys.exit(2)
 
     if not password and not session_cookie:
@@ -251,7 +259,12 @@ def cmd_reboot(args: argparse.Namespace):
     client = get_client(args)
     with SafeSession(client):
         client.reboot()
-    print("\033[92mRouter reboot initiated. Releasing session.\033[0m")
+    if getattr(args, "json", False):
+        print(json.dumps({"success": True, "message": "Router reboot initiated. Reconnect in 60-90 seconds."}, indent=2))
+    else:
+        print("\n\033[92m✓ Router reboot initiated successfully.\033[0m")
+        print("  ℹ  The router is restarting. Wi-Fi & Internet will temporarily drop for \033[1m~60–90 seconds\033[0m.")
+        print("  ℹ  Please wait until router LEDs turn solid before executing subsequent commands.\n")
 
 
 def cmd_profile_check(args: argparse.Namespace):
@@ -699,18 +712,18 @@ def cmd_calibrate(args: argparse.Namespace):
 
 def main():
     common_parser = argparse.ArgumentParser(add_help=False)
-    common_parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    common_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output machine-readable JSON")
+    common_parser.add_argument("--host", default=argparse.SUPPRESS, help="Router IP/Host (default: http://192.168.1.1)")
+    common_parser.add_argument("--username", default=argparse.SUPPRESS, help="Admin username (default: admin)")
+    common_parser.add_argument("--password", default=argparse.SUPPRESS, help="Admin password (overrides stored config)")
+    common_parser.add_argument("--cookie", "--session-id", dest="cookie", nargs="?", const="PROMPT", default=argparse.SUPPRESS, help="Browser session cookie (JSESSIONID or Netscape format)")
+    common_parser.add_argument("--force", action="store_true", default=argparse.SUPPRESS, help="Bypass Network Guard checks")
 
     parser = argparse.ArgumentParser(
         prog="tplink-cli",
         description="Universal TP-Link Agentic Router Suite (Cross-Platform)",
         parents=[common_parser],
     )
-    parser.add_argument("--host", help="Router IP/Host (default: http://192.168.1.1)")
-    parser.add_argument("--username", help="Admin username (default: admin)")
-    parser.add_argument("--password", help="Admin password (overrides stored config)")
-    parser.add_argument("--cookie", "--session-id", dest="cookie", nargs="?", const="PROMPT", help="Browser session cookie (JSESSIONID or Netscape format)")
-    parser.add_argument("--force", action="store_true", help="Bypass Network Guard checks")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -857,10 +870,157 @@ def main():
     p_repl.set_defaults(func=cmd_repl)
 
     parsed_args = parser.parse_args()
+    for _k, _v in [("json", False), ("host", None), ("username", None), ("password", None), ("cookie", None), ("force", False)]:
+        if not hasattr(parsed_args, _k):
+            setattr(parsed_args, _k, _v)
+
     if hasattr(parsed_args, "func"):
-        parsed_args.func(parsed_args)
+        try:
+            parsed_args.func(parsed_args)
+        except KeyboardInterrupt:
+            print("\n\033[93m[Aborted] Operation cancelled by user.\033[0m")
+            sys.exit(130)
+        except Exception as e:
+            sys.exit(handle_cli_error(e, parsed_args))
     else:
         parser.print_help()
+
+
+def handle_cli_error(e: Exception, args: Optional[argparse.Namespace] = None) -> int:
+    is_json = getattr(args, "json", False) if args else False
+    host = getattr(args, "host", None) or "http://192.168.1.1"
+
+    err_str = str(e)
+    err_type = type(e).__name__
+
+    # 1. Authentication / Password errors (Check before OSError since PermissionError inherits from OSError)
+    if isinstance(e, PermissionError) or "password" in err_str.lower() or "71233" in err_str:
+        if is_json:
+            print(json.dumps({
+                "error": True,
+                "code": "AUTHENTICATION_FAILED",
+                "message": "Router authentication failed.",
+                "detail": err_str or "Incorrect admin password or session expired.",
+                "hint": "Update your password with 'tplink-cli config set-password' or set an active session cookie with 'tplink-cli cookie'."
+            }, indent=2), file=sys.stderr)
+        else:
+            print()
+            print("======================================================================")
+            print("  🔒  \033[1mAUTHENTICATION FAILED\033[0m")
+            print("======================================================================")
+            print(f"Target Router : \033[94m{host}\033[0m")
+            print(f"Reason        : \033[91m{err_str or 'Incorrect admin password or session expired.'}\033[0m")
+            print("----------------------------------------------------------------------")
+            print("To fix this:")
+            print("  1. Update stored password:")
+            print("       \033[1mtplink-cli config set-password <password>\033[0m")
+            print("  2. Or set an active browser session cookie:")
+            print("       \033[1mtplink-cli cookie\033[0m")
+            print("======================================================================")
+            print()
+        return 1
+
+    # 2. Timeout error (Check before OSError since TimeoutError inherits from OSError)
+    if isinstance(e, (requests.exceptions.Timeout, TimeoutError)) or "timed out" in err_str.lower():
+        if is_json:
+            print(json.dumps({
+                "error": True,
+                "code": "REQUEST_TIMEOUT",
+                "message": f"Connection to {host} timed out.",
+                "hint": "The router may be busy rebooting, switching LTE bands, or under high load."
+            }, indent=2), file=sys.stderr)
+        else:
+            print()
+            print("======================================================================")
+            print("  ⏱️   \033[1mROUTER CONNECTION TIMED OUT\033[0m")
+            print("======================================================================")
+            print(f"Target Router : \033[94m{host}\033[0m")
+            print("Detail        : Request timed out waiting for router response.")
+            print("----------------------------------------------------------------------")
+            print("The router is taking too long to respond. It may be rebooting,")
+            print("renegotiating cellular frequencies, or experiencing packet loss.")
+            print("Please wait a few seconds and try again.")
+            print("======================================================================")
+            print()
+        return 1
+
+    # 3. Connection / Network errors (Offline / Rebooting)
+    is_network_err = (
+        isinstance(e, (requests.exceptions.ConnectionError, ConnectionError, OSError))
+        or any(phrase in err_str for phrase in [
+            "Network is unreachable",
+            "Connection refused",
+            "Failed to establish a new connection",
+            "Max retries exceeded",
+            "No route to host",
+            "Name or service not known",
+        ])
+    )
+
+    if is_network_err:
+        if is_json:
+            print(json.dumps({
+                "error": True,
+                "code": "ROUTER_UNREACHABLE",
+                "message": f"Unable to reach TP-Link router at {host}.",
+                "detail": "Network is unreachable (host is offline or Wi-Fi is reconnecting).",
+                "hint": "If you recently rebooted the router, wait 60–90 seconds for it to finish starting up. Ensure your device is connected to the router Wi-Fi or Ethernet."
+            }, indent=2), file=sys.stderr)
+        else:
+            print()
+            print("======================================================================")
+            print("  ⚠️   \033[1mROUTER UNREACHABLE (OFFLINE)\033[0m")
+            print("======================================================================")
+            print(f"Target Router : \033[94m{host}\033[0m")
+            print("Status        : \033[91mConnection Failed (Host is offline or unreachable)\033[0m")
+            print("----------------------------------------------------------------------")
+            print("Troubleshooting & Possible Causes:")
+            print("  • \033[1mRouter Rebooting\033[0m : If you just ran 'tplink-cli reboot', the hardware")
+            print("                       takes ~60 to 90 seconds to restart. Wait a moment and retry.")
+            print("  • \033[1mWi-Fi Dropped\033[0m    : Verify that your computer has reconnected to the")
+            print("                       router Wi-Fi (e.g. 'dulith.connect') or Ethernet LAN cable.")
+            print("  • \033[1mIP Gateway Check\033[0m : Ensure your default gateway is 192.168.1.1.")
+            print("                       Run 'tplink-cli profile' to inspect the active gateway.")
+            print("======================================================================")
+            print()
+        return 1
+
+    # 4. Argument / Config error
+    if isinstance(e, ValueError):
+        if is_json:
+            print(json.dumps({
+                "error": True,
+                "code": "INVALID_ARGUMENT",
+                "message": err_str,
+            }, indent=2), file=sys.stderr)
+        else:
+            print()
+            print("======================================================================")
+            print("  ⚠️   \033[1mCONFIGURATION / ARGUMENT ERROR\033[0m")
+            print("======================================================================")
+            print(f"Error : {err_str}")
+            print("======================================================================")
+            print()
+        return 2
+
+    # 5. Generic unhandled exception fallback
+    if is_json:
+        print(json.dumps({
+            "error": True,
+            "code": "UNEXPECTED_ERROR",
+            "type": err_type,
+            "message": err_str,
+        }, indent=2), file=sys.stderr)
+    else:
+        print()
+        print("======================================================================")
+        print("  ⚠️   \033[1mCOMMAND ERROR\033[0m")
+        print("======================================================================")
+        print(f"Type    : {err_type}")
+        print(f"Message : {err_str}")
+        print("======================================================================")
+        print()
+    return 1
 
 
 if __name__ == "__main__":
