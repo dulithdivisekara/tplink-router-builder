@@ -407,6 +407,40 @@ def cmd_band(args: argparse.Namespace):
     print(f"\033[92mLTE band successfully locked to {args.band.upper()}.\033[0m")
 
 
+def cmd_calibrate(args: argparse.Namespace):
+    from tplink_router.calibration.engine import RouterCalibrator
+    from tplink_router.calibration.dashboard import start_dashboard_server
+
+    cfg = ConfigManager().load(cli_host=args.host, cli_username=args.username, cli_password=args.password)
+    password = cfg.get("password") or args.password
+    host = cfg.get("host") or args.host or "http://192.168.1.1"
+
+    target_bands = [b.strip() for b in args.bands.split(",") if b.strip()]
+
+    calibrator = RouterCalibrator(
+        host=host,
+        password=password,
+        username=args.username or cfg.get("username", "admin"),
+        bands=target_bands,
+        watchdog_timeout=args.timeout,
+        dry_run=args.dry_run,
+    )
+
+    if args.web:
+        print(f"\n🌐 Live Calibration Dashboard running at: \033[96mhttp://localhost:{args.port}/\033[0m")
+        server = start_dashboard_server(calibrator=calibrator, port=args.port, blocking=False)
+        print("👉 Calibrator is ready! Open the Web UI and click [▶ Start Calibration] or let the sweep begin.")
+        try:
+            calibrator.run_sweep()
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nShutting down dashboard...")
+            server.shutdown()
+    else:
+        calibrator.run_sweep()
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="tplink-cli",
@@ -529,6 +563,16 @@ def main():
     p_band = subparsers.add_parser("band", help="Lock modem to specific LTE Band (e.g. 3, 8, 40, auto)")
     p_band.add_argument("band", help="LTE Band (e.g. 3, 8, 40, or auto)")
     p_band.set_defaults(func=cmd_band)
+
+    # calibrate
+    p_cal = subparsers.add_parser("calibrate", help="Autonomous RF band calibration & Live Web UI")
+    p_cal.add_argument("--web", action="store_true", default=True, help="Launch real-time Web UI dashboard")
+    p_cal.add_argument("--no-web", dest="web", action="store_false", help="Run in headless terminal mode")
+    p_cal.add_argument("--port", type=int, default=8765, help="Web dashboard port (default: 8765)")
+    p_cal.add_argument("--bands", default="8,3,1,40,auto", help="Candidate bands (default: 8,3,1,40,auto)")
+    p_cal.add_argument("--timeout", type=int, default=45, help="45s watchdog timeout")
+    p_cal.add_argument("--dry-run", action="store_true", help="Simulate without radio detachment")
+    p_cal.set_defaults(func=cmd_calibrate)
 
     # repl
     p_repl = subparsers.add_parser("repl", help="Launch interactive REPL console")

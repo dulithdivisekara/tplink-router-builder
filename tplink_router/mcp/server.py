@@ -392,6 +392,52 @@ def router_set_lte_band(band: str, confirm: bool = False, force: bool = False) -
 
 
 @server.tool()
+def router_calibrate(web: bool = True, port: int = 8765, dry_run: bool = False, confirm: bool = False) -> str:
+    """Runs autonomous RF band calibration across LTE frequencies (Band 8, 3, 1, 40, Auto) with 45s watchdog fail-safe.
+
+    Launches a real-time Live Web Dashboard on http://localhost:8765.
+    During band switches, the router modem temporarily detaches for 5-15 seconds.
+    The local daemon safeguards against permanent disconnection by auto-reverting if WAN drops for >45s.
+
+    Args:
+        web: Launch real-time Web UI on localhost:8765 (default: True).
+        port: Web dashboard port (default: 8765).
+        dry_run: Simulate band switches without modem detachment.
+        confirm: Confirmation flag to execute calibration.
+    """
+    if not confirm and not dry_run:
+        return (
+            "NOTICE: Cellular calibration sweeps multiple LTE bands. Switching bands causes "
+            "temporary WAN disconnections (5-15 seconds per band). A 45-second watchdog auto-reverts "
+            "if signal is lost. To proceed, call this tool with confirm=True or dry_run=True."
+        )
+
+    from tplink_router.calibration.engine import RouterCalibrator
+    from tplink_router.calibration.dashboard import start_dashboard_server
+
+    cfg = ConfigManager().load()
+    calibrator = RouterCalibrator(
+        host=cfg.get("host", "http://192.168.1.1"),
+        password=cfg.get("password"),
+        username=cfg.get("username", "admin"),
+        watchdog_timeout=45,
+        dry_run=dry_run,
+    )
+
+    if web:
+        start_dashboard_server(calibrator=calibrator, port=port, blocking=False)
+
+    res = calibrator.run_sweep()
+    rec = res.get("recommendation", {})
+    return (
+        f"Calibration completed!\n"
+        f"Winning Carrier: {rec.get('winning_band_name')} (Utility: {rec.get('utility_score')}/100)\n"
+        f"Reasoning: {rec.get('reasoning_summary')}\n"
+        f"Live Dashboard: http://localhost:{port}/"
+    )
+
+
+@server.tool()
 def router_reboot(confirm: bool = False, force: bool = False) -> str:
     """Initiates a graceful reboot of the TP-Link router.
 

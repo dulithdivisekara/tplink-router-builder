@@ -44,7 +44,7 @@ def sync_cli():
         return False
 
     # Sync core modules
-    for mod in ["core", "clients", "models", "cli"]:
+    for mod in ["core", "clients", "models", "cli", "calibration"]:
         src = BUILDER_DIR / "tplink_router" / mod
         dst = CLI_DIR / "tplink_cli" / mod
         if src.exists():
@@ -52,8 +52,10 @@ def sync_cli():
             shutil.copytree(src, dst)
 
     # Sync scripts and tests
+    (CLI_DIR / "scripts").mkdir(parents=True, exist_ok=True)
     shutil.copy2(BUILDER_DIR / "scripts" / "optimize-network.sh", CLI_DIR / "scripts" / "optimize-network.sh")
     shutil.copy2(BUILDER_DIR / "scripts" / "keepalive-pulse.sh", CLI_DIR / "scripts" / "keepalive-pulse.sh")
+    shutil.copy2(BUILDER_DIR / "scripts" / "router_calibrator.py", CLI_DIR / "scripts" / "router_calibrator.py")
     for t in (BUILDER_DIR / "tests").glob("test_*.py"):
         shutil.copy2(t, CLI_DIR / "tests" / t.name)
 
@@ -79,7 +81,7 @@ def sync_mcp():
         return False
 
     # Sync core modules
-    for mod in ["core", "clients", "models"]:
+    for mod in ["core", "clients", "models", "calibration"]:
         src = BUILDER_DIR / "tplink_router" / mod
         dst = MCP_DIR / "tplink_mcp" / mod
         if src.exists():
