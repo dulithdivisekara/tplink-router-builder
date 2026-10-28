@@ -225,13 +225,13 @@ def router_get_connected_clients(force: bool = False) -> List[Dict[str, Any]]:
 
 
 @server.tool()
-def router_manage_dhcp_reservation(action: str, mac: str, ip: Optional[str] = None,
+def router_manage_dhcp_reservation(action: str, mac: Optional[str] = None, ip: Optional[str] = None,
                                   confirm: bool = False, force: bool = False) -> str:
     """Manages static DHCP IP address reservations on the router.
 
     Args:
         action: 'add', 'delete', or 'list'.
-        mac: Hardware MAC address (e.g. 'AA:BB:CC:DD:EE:FF').
+        mac: Hardware MAC address (e.g. 'AA:BB:CC:DD:EE:FF', required for 'add' or 'delete').
         ip: Desired reserved IP address (required for 'add').
         confirm: Confirmation required for 'add' or 'delete'.
         force: Set to True to bypass Network Guard safety check.
@@ -243,7 +243,13 @@ def router_manage_dhcp_reservation(action: str, mac: str, ip: Optional[str] = No
 
         if action == "list":
             res = client.get_dhcp_reservations()
-            return str(res)
+            if not res:
+                return "No static DHCP reservations configured."
+            import json
+            return json.dumps(res, indent=2)
+
+        if not mac:
+            return f"Error: MAC address is required when performing action '{action}'."
 
         if not confirm:
             return f"SAFETY WARNING: Modifying DHCP reservations alters LAN routing. Call again with confirm=True to {action} reservation for MAC {mac}."

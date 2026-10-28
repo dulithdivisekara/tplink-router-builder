@@ -57,6 +57,8 @@ def sync_cli():
     shutil.copy2(BUILDER_DIR / "scripts" / "keepalive-pulse.sh", CLI_DIR / "scripts" / "keepalive-pulse.sh")
     shutil.copy2(BUILDER_DIR / "scripts" / "router_calibrator.py", CLI_DIR / "scripts" / "router_calibrator.py")
     for t in (BUILDER_DIR / "tests").glob("test_*.py"):
+        if t.name == "test_mcp_server.py":
+            continue
         shutil.copy2(t, CLI_DIR / "tests" / t.name)
 
     # Rewrite imports from tplink_router to tplink_cli
@@ -98,8 +100,11 @@ def sync_mcp():
     # Rewrite imports from tplink_router to tplink_mcp
     for py_file in MCP_DIR.glob("**/*.py"):
         content = py_file.read_text(encoding="utf-8")
+        if "tplink_router.mcp.server" in content:
+            content = content.replace("tplink_router.mcp.server", "tplink_mcp.server")
         if "tplink_router" in content:
-            py_file.write_text(content.replace("tplink_router", "tplink_mcp"), encoding="utf-8")
+            content = content.replace("tplink_router", "tplink_mcp")
+        py_file.write_text(content, encoding="utf-8")
 
     # Run tests in tplink-mcp
     print("Running unit tests in tplink-mcp...")

@@ -151,7 +151,7 @@ class TPLinkMRClient:
 
     def get_device_info(self) -> DeviceInfo:
         acts = [
-            ActItem(ActItem.GET, "IGD_DEV_INFO", attrs=["modelName", "description", "softwareVersion", "hardwareVersion"]),
+            ActItem(ActItem.GET, "IGD_DEV_INFO", attrs=["modelName", "description", "softwareVersion", "hardwareVersion", "serialNumber"]),
         ]
         res = self.req_act(acts)
         raw_dev = res.get("0", {})
@@ -161,11 +161,18 @@ class TPLinkMRClient:
             dev = raw_dev
         else:
             dev = {}
+
+        mac = ""
+        sn = dev.get("serialNumber", "")
+        if sn and len(sn) == 12 and all(c in "0123456789ABCDEFabcdef" for c in sn):
+            mac = ":".join(sn[i:i+2] for i in range(0, 12, 2)).upper()
+
         return DeviceInfo(
             model=dev.get("modelName", "Archer MR200"),
             description=dev.get("description", ""),
             firmware_version=dev.get("softwareVersion", ""),
             hardware_version=dev.get("hardwareVersion", "v5"),
+            mac_address=mac,
         )
 
     def get_lte_status(self) -> LTEStatus:
@@ -175,38 +182,61 @@ class TPLinkMRClient:
             ActItem(ActItem.GET, "WAN_LTE_INTF_CFG", stack="2,0,0,0,0,0",
                     attrs=["curRxSpeed", "curTxSpeed", "totalStatistics"]),
             ActItem(ActItem.GET, "LTE_WAN_CFG", stack="2,1,0,0,0,0", attrs=["profileName"]),
-            ActItem(ActItem.GET, "LTE_BANDINFO", stack="2,1,0,0,0,0", attrs=["band", "earfcn", "pci", "rsrp", "rsrq", "snr"]),
-            ActItem(ActItem.GET, "LTE_NET_STATUS", stack="2,1,0,0,0,0", attrs=[
-                "smsUnreadCount", "sigLevel", "rfInfoRsrp", "rfInfoRsrq", "rfInfoSnr"
-            ]),
-            ActItem(ActItem.GET, "LTE_CELL_LOCK", stack="2,1,0,0,0,0", attrs=["enable", "earfcn", "pci", "cid", "freq"]),
+            ActItem(ActItem.GET, "LTE_NET_STATUS", stack="2,1,0,0,0,0"),
         ]
         res = self.req_act(acts)
 
-        link_cfg = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
-        intf_cfg = res.get("1", {}) if isinstance(res.get("1"), dict) else {}
-        wan_cfg = res.get("2", {}) if isinstance(res.get("2"), dict) else {}
-        band_info = res.get("3", {}) if isinstance(res.get("3"), dict) else {}
-        net_status = res.get("4", {}) if isinstance(res.get("4"), dict) else {}
-        lock_info = res.get("5", {}) if isinstance(res.get("5"), dict) else {}
+        raw_link = res.get("0", {})
+        link_cfg = raw_link[0] if isinstance(raw_link, list) and raw_link else (raw_link if isinstance(raw_link, dict) else {})
+        raw_intf = res.get("1", {})
+        intf_cfg = raw_intf[0] if isinstance(raw_intf, list) and raw_intf else (raw_intf if isinstance(raw_intf, dict) else {})
+        raw_wan = res.get("2", {})
+        wan_cfg = raw_wan[0] if isinstance(raw_wan, list) and raw_wan else (raw_wan if isinstance(raw_wan, dict) else {})
+        raw_net = res.get("3", {})
+        net_status = raw_net[0] if isinstance(raw_net, list) and raw_net else (raw_net if isinstance(raw_net, dict) else {})
+
+        # Optional band_info for older firmware models
+        band_info = {}
+        try:
+            b_res = self.req_act([ActItem(ActItem.GET, "LTE_BANDINFO", stack="2,1,0,0,0,0", attrs=["band", "earfcn", "pci", "rsrp", "rsrq", "snr"])])
+            b_raw = b_res.get("0", {})
+            if isinstance(b_raw, list) and b_raw:
+                band_info = b_raw[0]
+            elif isinstance(b_raw, dict):
+                band_info = b_raw
+        except Exception:
+            pass
+
+        # Query cell lock independently to avoid stack batching collisions
+        lock_info = {}
+        try:
+            lock_res = self.req_act([ActItem(ActItem.GET, "LTE_CELL_LOCK")])
+            lock_raw = lock_res.get("0", {})
+            if isinstance(lock_raw, list) and lock_raw:
+                lock_info = lock_raw[0]
+            elif isinstance(lock_raw, dict):
+                lock_info = lock_raw
+        except Exception:
+            pass
 
         rsrp = int(band_info.get("rsrp") or net_status.get("rfInfoRsrp") or 0)
         rsrq = int(band_info.get("rsrq") or net_status.get("rfInfoRsrq") or 0)
         snr = int(band_info.get("snr") or net_status.get("rfInfoSnr") or 0)
+        rssi = int(net_status.get("rfInfoRssi") or 0)
         bars = int(link_cfg.get("signalStrength") or net_status.get("sigLevel") or 0)
 
-        earfcn = band_info.get("earfcn")
-        pci = band_info.get("pci")
+        earfcn = band_info.get("earfcn") or net_status.get("rfInfoChannel")
+        pci = band_info.get("pci") or net_status.get("rfInfoPCellChannel")
         band = band_info.get("band")
 
         if earfcn and not band:
             try:
                 ef = int(earfcn)
-                if 1200 <= ef <= 1949:
+                if 1200 <= ef <= 1949 or 9612 <= ef <= 9888:
                     band = "Band 3 (1800 MHz)"
-                elif 3450 <= ef <= 3799:
+                elif 3450 <= ef <= 3799 or 2937 <= ef <= 3088 or 10562 <= ef <= 10838:
                     band = "Band 8 (900 MHz)"
-                elif 0 <= ef <= 599:
+                elif 0 <= ef <= 599 or 10050 <= ef <= 10125:
                     band = "Band 1 (2100 MHz)"
                 elif 38650 <= ef <= 39649:
                     band = "Band 40 (2300 MHz)"
@@ -216,13 +246,17 @@ class TPLinkMRClient:
         rx_speed = int(intf_cfg.get("curRxSpeed", 0))
         tx_speed = int(intf_cfg.get("curTxSpeed", 0))
 
-        rf = RFMetrics(rsrp_dbm=rsrp, rsrq_db=rsrq, snr_db=snr, signal_bars=bars)
+        rf = RFMetrics(rsrp_dbm=rsrp, rsrq_db=rsrq, snr_db=snr, rssi_dbm=rssi, signal_bars=bars)
+        is_locked = (
+            lock_info.get("rfInfoCellIDLock") == "1"
+            or lock_info.get("enable") == "1"
+        )
         cell_lock = CellLockStatus(
-            enabled=lock_info.get("enable") == "1",
-            earfcn=lock_info.get("earfcn", ""),
-            pci=lock_info.get("pci", ""),
-            cid=lock_info.get("cid", ""),
-            freq=lock_info.get("freq", ""),
+            enabled=is_locked,
+            earfcn=lock_info.get("rfInfoEARFCN") or lock_info.get("earfcn", ""),
+            pci=lock_info.get("rfInfoPCI") or lock_info.get("pci", ""),
+            cid=lock_info.get("rfInfoCellID") or lock_info.get("cid", ""),
+            freq=lock_info.get("rfInfoFreq") or lock_info.get("freq", ""),
         )
 
         return LTEStatus(
@@ -246,12 +280,15 @@ class TPLinkMRClient:
 
     def set_cell_lock(self, enable: bool, earfcn: Optional[Union[str, int]] = None,
                       pci: Optional[Union[str, int]] = None) -> bool:
-        attrs = [f"enable={'1' if enable else '0'}"]
+        lock_val = "1" if enable else "0"
+        attrs = [f"rfInfoCellIDLock={lock_val}", f"enable={lock_val}"]
         if enable:
             if not earfcn or not pci:
                 raise ValueError("Both EARFCN and PCI are required to lock a cell.")
-            attrs.append(f"earfcn={earfcn}")
-            attrs.append(f"pci={pci}")
+            attrs.extend([
+                f"rfInfoEARFCN={earfcn}", f"earfcn={earfcn}",
+                f"rfInfoPCI={pci}", f"pci={pci}"
+            ])
 
         acts = [ActItem(ActItem.SET, "LTE_CELL_LOCK", attrs=attrs)]
         self.req_act(acts)
@@ -259,16 +296,17 @@ class TPLinkMRClient:
 
     def get_wan_config(self) -> Tuple[IPv4Config, IPv6Config]:
         acts = [
-            ActItem(ActItem.GL, "WAN_IP_CONN", attrs=["connectionStatus", "name", "enable", "externalIPAddress", "subnetMask", "defaultGateway", "DNSServers"]),
-            ActItem(ActItem.GL, "WAN_IPv6_CONN", attrs=["enable", "connectionStatus", "name", "IPv6Address", "DNSServers"]),
+            ActItem(ActItem.GL, "WAN_IP_CONN", attrs=[
+                "connectionStatus", "name", "enable", "externalIPAddress", "subnetMask",
+                "defaultGateway", "DNSServers", "MACAddress",
+                "X_TP_IPv6Enabled", "X_TP_IPv6ConnStatus", "X_TP_ExternalIPv6Address",
+                "X_TP_DefaultIPv6Gateway", "X_TP_IPv6DNSServers"
+            ]),
         ]
         res = self.req_act(acts)
         raw_v4 = res.get("0", [])
         if isinstance(raw_v4, dict):
             raw_v4 = [raw_v4]
-        raw_v6 = res.get("1", [])
-        if isinstance(raw_v6, dict):
-            raw_v6 = [raw_v6]
 
         v4 = {}
         for entry in raw_v4:
@@ -279,16 +317,35 @@ class TPLinkMRClient:
                 if entry.get("connectionStatus") == "Connected":
                     break
 
-        v6 = {}
-        for entry in raw_v6:
-            if not isinstance(entry, dict):
-                continue
-            if entry.get("enable") == "1" or entry.get("connectionStatus") == "Connected":
-                v6 = entry
-                break
+        v6_enabled = v4.get("X_TP_IPv6Enabled") == "1"
+        v6_ip = v4.get("X_TP_ExternalIPv6Address", "")
+        if v6_ip == "::":
+            v6_ip = ""
+        v6_gw = v4.get("X_TP_DefaultIPv6Gateway", "")
+        if v6_gw == "::":
+            v6_gw = ""
+        v6_status = v4.get("X_TP_IPv6ConnStatus", "Disconnected")
+
+        raw_dns_v6 = v4.get("X_TP_IPv6DNSServers", "")
+        dns_v6 = [d.strip() for d in raw_dns_v6.split(",") if d.strip() and d.strip() != "::"]
+
+        if not v6_enabled and not v6_ip:
+            try:
+                res_v6 = self.req_act([ActItem(ActItem.GL, "WAN_IPv6_CONN", attrs=["enable", "connectionStatus", "name", "IPv6Address", "DNSServers"])])
+                raw_v6 = res_v6.get("0", [])
+                if isinstance(raw_v6, dict):
+                    raw_v6 = [raw_v6]
+                for entry in raw_v6:
+                    if isinstance(entry, dict) and (entry.get("enable") == "1" or entry.get("connectionStatus") == "Connected"):
+                        v6_enabled = entry.get("enable") == "1"
+                        v6_ip = entry.get("IPv6Address", "")
+                        v6_status = entry.get("connectionStatus", "Disconnected")
+                        dns_v6 = [d.strip() for d in entry.get("DNSServers", "").split(",") if d.strip() and d.strip() != "::"]
+                        break
+            except Exception:
+                pass
 
         dns_servers = [d.strip() for d in v4.get("DNSServers", "").split(",") if d.strip() and d.strip() != "0.0.0.0"]
-        dns_v6 = [d.strip() for d in v6.get("DNSServers", "").split(",") if d.strip() and d.strip() != "::"]
 
         ipv4 = IPv4Config(
             ip=v4.get("externalIPAddress", ""),
@@ -298,35 +355,61 @@ class TPLinkMRClient:
             status=v4.get("connectionStatus", "Connected" if v4.get("externalIPAddress") else "Disconnected"),
         )
         ipv6 = IPv6Config(
-            enabled=v6.get("enable") == "1",
-            ip=v6.get("IPv6Address", ""),
+            enabled=v6_enabled,
+            ip=v6_ip,
+            gateway=v6_gw,
             dns=dns_v6,
-            status=v6.get("connectionStatus", "Disconnected"),
+            status=v6_status,
         )
         return ipv4, ipv6
 
     def set_dns(self, primary_dns: str, secondary_dns: str = "8.8.8.8") -> bool:
         dns_str = f"{primary_dns},{secondary_dns}"
-        acts = [
-            ActItem(ActItem.SET, "WAN_IP_CONN", stack="1,1,1,0,0,0",
-                    attrs=["DNSOverrideAllowed=1", f"DNSServers={dns_str}"]),
-        ]
-        self.req_act(acts)
+        for stack in ["2,1,1,0,0,0", "1,1,1,0,0,0"]:
+            try:
+                self.req_act([
+                    ActItem(ActItem.SET, "WAN_IP_CONN", stack=stack,
+                            attrs=["DNSOverrideAllowed=1", f"DNSServers={dns_str}"]),
+                ])
+            except Exception:
+                pass
         return True
 
     def toggle_ipv6(self, enable: bool) -> bool:
-        acts = [
-            ActItem(ActItem.SET, "WAN_IPv6_CONN", stack="1,1,1,0,0,0",
-                    attrs=[f"enable={'1' if enable else '0'}"]),
-        ]
-        self.req_act(acts)
+        flag = "1" if enable else "0"
+        for stack in ["2,1,1,0,0,0", "1,1,1,0,0,0"]:
+            try:
+                self.req_act([
+                    ActItem(ActItem.SET, "WAN_IP_CONN", stack=stack,
+                            attrs=[f"X_TP_IPv6Enabled={flag}"]),
+                ])
+            except Exception:
+                pass
+        try:
+            self.req_act([
+                ActItem(ActItem.SET, "WAN_IPv6_CONN", stack="1,1,1,0,0,0",
+                        attrs=[f"enable={flag}"]),
+            ])
+        except Exception:
+            pass
         return True
 
     def get_telemetry(self) -> RouterTelemetry:
         dev = self.get_device_info()
         lte = self.get_lte_status()
         v4, v6 = self.get_wan_config()
-        return RouterTelemetry(device=dev, lte=lte, ipv4=v4, ipv6=v6)
+        clients = []
+        try:
+            clients = self.get_connected_clients()
+        except Exception:
+            pass
+        return RouterTelemetry(
+            device=dev,
+            lte=lte,
+            ipv4=v4,
+            ipv6=v6,
+            connected_clients_count=len(clients)
+        )
 
     def get_sms(self, limit: int = 10, folder: str = "inbox") -> List[SMSMessage]:
         box_oid = "LTE_SMS_SENDMSGBOX" if folder == "sent" else "LTE_SMS_RECVMSGBOX"
@@ -422,6 +505,8 @@ class TPLinkMRClient:
 
         clients = []
         for e in entries:
+            if not isinstance(e, dict) or (not e.get("MACAddress") and not e.get("IPAddress")):
+                continue
             lease_sec = int(e.get("leaseTimeRemaining", 0))
             if lease_sec == -1:
                 lease_str = "Permanent"
@@ -577,9 +662,10 @@ class TPLinkMRClient:
     def set_wifi_radio(self, band: str, enabled: bool, ssid: Optional[str] = None) -> bool:
         """Toggles Wi-Fi radio (2.4GHz or 5GHz) and optionally renames SSID."""
         target_stack = "1,1,0,0,0,0" if "2" in band else "1,2,0,0,0,0"
-        attrs = [f"Enable={'1' if enabled else '0'}"]
+        flag = "1" if enabled else "0"
+        attrs = [f"enable={flag}", f"Enable={flag}"]
         if ssid:
-            attrs.append(f"SSID={ssid}")
+            attrs.extend([f"SSID={ssid}", f"ssid={ssid}"])
         acts = [ActItem(ActItem.SET, "LAN_WLAN", stack=target_stack, attrs=attrs)]
         self.req_act(acts)
         return True
