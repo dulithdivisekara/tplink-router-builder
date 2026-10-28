@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "universal-tplink-mcp"
+version = "1.0.0"
+description = "Universal, Agent-Safe TP-Link Router Management Suite & MCP Server (Linux, macOS, Windows)"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Dulith Divisekara", email = "dulithdivisekara@gmail.com" }
+]
+keywords = [
+    "tplink", "mcp", "model-context-protocol", "router-automation",
+    "archer-mr200", "4g-lte", "agentic-ai", "network-optimization", "hutch-sri-lanka"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: System :: Networking",
+    "Topic :: Home Automation",
+]
+dependencies = [
+    "requests>=2.28.0",
+    "cryptography>=38.0.0",
+    "pycryptodome>=3.18.0",
+    "tplinkrouterc6u>=5.30.0",
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+tplink-cli = "tplink_router.cli.main:main"
+universal-tplink-mcp = "tplink_router.mcp.server:main"
+tplink-mcp = "tplink_router.mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/dulithdivisekara/universal-tplink-mcp"
+Repository = "https://github.com/dulithdivisekara/universal-tplink-mcp.git"
+Issues = "https://github.com/dulithdivisekara/universal-tplink-mcp/issues"
