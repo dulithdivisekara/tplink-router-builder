@@ -631,10 +631,14 @@ def main():
 
     # sms
     p_sms = subparsers.add_parser("sms", help="Read or send SMS")
+    p_sms.add_argument("--limit", type=int, default=10, help="Max messages to fetch")
+    p_sms.add_argument("--folder", choices=["inbox", "sent"], default="inbox", help="SMS folder")
+    p_sms.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     sms_sub = p_sms.add_subparsers(dest="subcommand")
     sms_list = sms_sub.add_parser("list", help="List SMS messages")
     sms_list.add_argument("--limit", type=int, default=10, help="Max messages to fetch")
     sms_list.add_argument("--folder", choices=["inbox", "sent"], default="inbox", help="SMS folder")
+    sms_list.add_argument("--json", action="store_true", help="Output machine-readable JSON")
     sms_send = sms_sub.add_parser("send", help="Send SMS")
     sms_send.add_argument("recipient", help="Phone number")
     sms_send.add_argument("message", help="Message text")

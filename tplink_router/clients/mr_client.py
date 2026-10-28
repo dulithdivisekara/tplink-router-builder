@@ -301,25 +301,40 @@ class TPLinkMRClient:
         box_oid = "LTE_SMS_SENDMSGBOX" if folder == "sent" else "LTE_SMS_RECVMSGBOX"
         entry_oid = "LTE_SMS_SENDMSGENTRY" if folder == "sent" else "LTE_SMS_RECVMSGENTRY"
 
-        acts = [
-            ActItem(ActItem.SET, box_oid, attrs=["PageNumber=1"]),
-            ActItem(ActItem.GL, entry_oid, attrs=["index", "from", "to", "content", "receivedTime", "unread"]),
-        ]
-        res = self.req_act(acts)
-        entries = res.get("1", [])
+        # 1. Optionally select page 1 on the target message box
+        try:
+            self.req_act([ActItem(ActItem.SET, box_oid, attrs=["PageNumber=1"])])
+        except Exception:
+            pass
+
+        # 2. Query entries via standalone GL (Get List) request
+        # Note: SET and GL cannot be batched together in TP-Link CGI or it returns error 9003
+        if folder == "sent":
+            attrs = ["index", "to", "content", "sendTime"]
+        else:
+            attrs = ["index", "from", "content", "receivedTime", "unread"]
+
+        res = self.req_act([ActItem(ActItem.GL, entry_oid, attrs=attrs)])
+        entries = res.get("0", [])
         if isinstance(entries, dict):
             entries = [entries]
 
         messages = []
-        for e in entries[:limit]:
+        for e in entries:
+            if not isinstance(e, dict) or not e.get("index"):
+                continue
+            time_val = e.get("receivedTime") or e.get("sendTime") or ""
+            phone_val = e.get("from") or e.get("to") or "Unknown"
             messages.append(SMSMessage(
                 index=int(e.get("index", 0)),
-                sender=e.get("from") or e.get("to") or "Unknown",
-                content=e.get("content", ""),
-                received_time=e.get("receivedTime", ""),
+                sender=phone_val,
+                content=unescape_act_val(e.get("content", "")),
+                received_time=time_val,
                 unread=e.get("unread") == "1",
                 folder=folder,
             ))
+            if len(messages) >= limit:
+                break
         return messages
 
     def send_sms(self, to_phone: str, message: str) -> bool:
