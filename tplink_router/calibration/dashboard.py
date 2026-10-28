@@ -12,7 +12,7 @@ import logging
 import os
 import threading
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Optional
 
@@ -298,7 +298,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
           <h2 class="text-sm font-semibold text-white">Cellular Band Performance & Rain Attenuation Matrix</h2>
           <p class="text-xs text-slate-400 mt-0.5">Comparative benchmark across Sri Lankan carrier frequencies (Band 8 900MHz, Band 3 1800MHz, Band 1, Band 40, Auto)</p>
         </div>
-        <a href="/api/report" target="_blank" class="self-start sm:self-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-muted hover:bg-surface-border/40 text-slate-200 border border-white/10 transition flex items-center space-x-1.5">
+        <a href="/api/report" download="calibration-report.md" target="_blank" class="self-start sm:self-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-muted hover:bg-surface-border/40 text-slate-200 border border-white/10 transition flex items-center space-x-1.5">
           <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -686,11 +686,12 @@ class DashboardRequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/api/report":
             self.send_response(200)
             self.send_header("Content-Type", "text/markdown; charset=utf-8")
-            self.send_header("Content-Disposition", "inline; filename=calibration-report.md")
+            self.send_header("Content-Disposition", 'attachment; filename="calibration-report.md"')
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             state = self._read_state()
-            rec = state.get("recommendation", {})
-            md = rec.get("markdown_report", "# No report available yet.\nRun calibration first.")
+            rec = state.get("recommendation") or {}
+            md = rec.get("markdown_report") or "# No report available yet.\n\nPlease run the autonomous calibration sweep first."
             self.wfile.write(md.encode("utf-8"))
             return
 
@@ -766,13 +767,13 @@ def start_dashboard_server(
     host: str = "0.0.0.0",
     port: int = 8765,
     blocking: bool = True
-) -> HTTPServer:
+) -> ThreadingHTTPServer:
     """Starts the real-time HTTP + SSE calibration dashboard server."""
     global GLOBAL_CALIBRATOR
     if calibrator:
         GLOBAL_CALIBRATOR = calibrator
 
-    server = HTTPServer((host, port), DashboardRequestHandler)
+    server = ThreadingHTTPServer((host, port), DashboardRequestHandler)
     logger.info(f"Calibration Web Dashboard running at http://{host}:{port}/")
 
     if blocking:

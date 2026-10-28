@@ -733,11 +733,36 @@ class TPLinkMRClient:
 
     def set_lte_band(self, band: str) -> bool:
         """Manually locks router to specific LTE band (e.g. '3', '8', '40', or 'auto')."""
-        if band.lower() == "auto":
-            attrs = ["enable=0", "selectedBand=0"]
+        band_str = str(band).lower().replace("band", "").strip()
+        if band_str in ("auto", "0"):
+            attrs = [
+                "bandPrefMaskL=0",
+                "bandPrefMaskH=0",
+                "enable=0",
+                "selectedBand=0",
+            ]
         else:
-            clean_band = band.upper().replace("BAND", "").strip()
-            attrs = ["enable=1", f"selectedBand={clean_band}"]
+            try:
+                b_num = int(band_str)
+            except ValueError:
+                raise ValueError(f"Invalid LTE Band: {band}")
+
+            if 1 <= b_num <= 32:
+                mask_l = 1 << (b_num - 1)
+                mask_h = 0
+            elif 33 <= b_num <= 64:
+                mask_l = 0
+                mask_h = 1 << (b_num - 32)
+            else:
+                raise ValueError(f"Unsupported LTE Band: {band}")
+
+            attrs = [
+                f"bandPrefMaskL={mask_l}",
+                f"bandPrefMaskH={mask_h}",
+                "enable=1",
+                f"selectedBand={b_num}",
+            ]
+
         acts = [ActItem(ActItem.SET, "LTE_BAND_SEL", attrs=attrs)]
         self.req_act(acts)
         return True

@@ -133,6 +133,8 @@ class TestAdvancedMRFeatures(unittest.TestCase):
             band_call = mock_req.call_args[0][0][0]
             self.assertEqual(band_call.oid, "LTE_BAND_SEL")
             self.assertIn("selectedBand=3", band_call.attrs)
+            self.assertIn("bandPrefMaskL=4", band_call.attrs)
+            self.assertIn("bandPrefMaskH=0", band_call.attrs)
 
             res = self.client.run_wan_diagnostic(max_wait_sec=2)
             self.assertEqual(res["status"], "Passed")

@@ -276,9 +276,9 @@ class RouterCalibrator:
                     lte = self.client.get_lte_status()
                     rf = getattr(lte, "rf", None)
                     if rf:
-                        metrics["rsrp"] = getattr(rf, "rsrp", -85)
-                        metrics["rsrq"] = getattr(rf, "rsrq", -10)
-                        metrics["sinr"] = getattr(rf, "snr", 15)
+                        metrics["rsrp"] = getattr(rf, "rsrp_dbm", getattr(rf, "rsrp", -85))
+                        metrics["rsrq"] = getattr(rf, "rsrq_db", getattr(rf, "rsrq", -10))
+                        metrics["sinr"] = getattr(rf, "snr_db", getattr(rf, "snr", 15))
                     metrics["earfcn"] = getattr(lte, "earfcn", "N/A")
                     metrics["pci"] = getattr(lte, "pci", "N/A")
                     metrics["band"] = getattr(lte, "band", "auto")
@@ -355,6 +355,9 @@ class RouterCalibrator:
         except Exception as e:
             self._log(f"Failed to execute set_lte_band({target_band}): {e}", "ERROR")
             return False
+
+        # Allow modem 3s to initiate radio detachment and RF PLL retuning
+        time.sleep(3)
 
         # 45s Watchdog loop
         self._log(f"Modem detached. Initiating {self.watchdog_timeout}s Watchdog timer...")
