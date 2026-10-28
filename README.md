@@ -2,15 +2,20 @@
 
 <div align="center">
 
+<img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/TPLINK_Logo_2.svg" alt="TP-Link Official Logo" width="220" />
+<br><br>
+
+# TP-Link Router Suite & Upstream Builder Core
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP%202.x-purple.svg)](https://modelcontextprotocol.io/)
-[![Platform: Linux | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-brightgreen.svg)](https://github.com/dulithdivisekara/universal-tplink-mcp)
-[![CI Tests](https://img.shields.io/badge/CI-Passing-success.svg)](https://github.com/dulithdivisekara/universal-tplink-mcp/actions)
+[![Platform: Linux | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-brightgreen.svg)](https://github.com/dulithdivisekara/tplink-router-builder)
+[![CI Tests](https://img.shields.io/badge/CI-Passing-success.svg)](https://github.com/dulithdivisekara/tplink-router-builder/actions)
 [![Author: Dulith Divisekara](https://img.shields.io/badge/Author-Dulith%20Divisekara%20(SLIIT)-orange.svg)](https://github.com/dulithdivisekara)
 
-**A universal, cross-platform CLI suite and Model Context Protocol (MCP 2.x) server for TP-Link routers.**<br>
-Engineered for both human power-users and autonomous AI agents (Google Antigravity, Claude, Cursor) with built-in network safety guards, atomic session management, client controls, data quota limits, and cellular optimization.
+**The central upstream builder, test engine, and protocol specification monorepo for the TP-Link Router ecosystem.**<br>
+Maintains core TR-064 reverse engineering, cryptographic engines, multi-environment network safety, and synchronizes to the official downstream distributions: [`tplink-cli`](https://github.com/dulithdivisekara/tplink-cli) and [`tplink-mcp`](https://github.com/dulithdivisekara/tplink-mcp).
 
 </div>
 

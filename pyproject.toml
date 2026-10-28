@@ -44,6 +44,6 @@ universal-tplink-mcp = "tplink_router.mcp.server:main"
 tplink-mcp = "tplink_router.mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/dulithdivisekara/universal-tplink-mcp"
-Repository = "https://github.com/dulithdivisekara/universal-tplink-mcp.git"
-Issues = "https://github.com/dulithdivisekara/universal-tplink-mcp/issues"
+Homepage = "https://github.com/dulithdivisekara/tplink-router-builder"
+Repository = "https://github.com/dulithdivisekara/tplink-router-builder.git"
+Issues = "https://github.com/dulithdivisekara/tplink-router-builder/issues"
