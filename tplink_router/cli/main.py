@@ -18,11 +18,13 @@ def get_client(args: argparse.Namespace) -> Any:
         cli_host=getattr(args, "host", None),
         cli_username=getattr(args, "username", None),
         cli_password=getattr(args, "password", None),
+        cli_cookie=getattr(args, "cookie", None),
     )
 
     host = cfg["host"]
     username = cfg["username"]
     password = cfg["password"]
+    session_cookie = cfg.get("session_cookie")
     expected_ssid = cfg.get("expected_ssid")
     force = getattr(args, "force", False)
 
@@ -32,11 +34,13 @@ def get_client(args: argparse.Namespace) -> Any:
         print(f"\033[91m[Network Guard Alert] {msg}\033[0m")
         sys.exit(2)
 
-    if not password:
-        print(f"No password configured for router at {host}.")
+    if not password and not session_cookie:
+        print(f"No password or session cookie configured for router at {host}.")
         password = getpass.getpass("Enter router admin password: ")
 
-    return RouterClientFactory.get_client(host=host, password=password, username=username)
+    return RouterClientFactory.get_client(
+        host=host, password=password, username=username, session_cookie=session_cookie
+    )
 
 
 def cmd_status(args: argparse.Namespace):
@@ -167,16 +171,18 @@ def cmd_sms(args: argparse.Namespace):
         if not hasattr(client, "get_sms"):
             print("SMS is only supported on cellular MR models.")
             return
-        if args.subcommand == "send":
+        if getattr(args, "subcommand", None) == "send":
             client.send_sms(args.recipient, args.message)
             print("\033[92mSMS sent successfully.\033[0m")
         else:
-            msgs = client.get_sms(limit=args.limit or 10, folder=args.folder or "inbox")
+            limit = getattr(args, "limit", 10) or 10
+            folder = getattr(args, "folder", "inbox") or "inbox"
+            msgs = client.get_sms(limit=limit, folder=folder)
             if getattr(args, "json", False):
                 import dataclasses
                 print(json.dumps([dataclasses.asdict(m) for m in msgs], indent=2))
                 return
-            print(f"\n\033[1mSMS ({len(msgs)} messages in {args.folder or 'inbox'}):\033[0m")
+            print(f"\n\033[1mSMS ({len(msgs)} messages in {folder}):\033[0m")
             print("-" * 65)
             for m in msgs:
                 unread = "\033[93m[NEW]\033[0m " if m.unread else ""
@@ -227,14 +233,147 @@ def cmd_config(args: argparse.Namespace):
         ssid = args.expected_ssid or ""
         cfg_mgr.save(password=pwd, host=host, username=username, expected_ssid=ssid)
         print(f"\033[92mConfiguration securely saved to {cfg_mgr.config_file} (mode 0600).\033[0m")
+    elif args.subcommand == "set-cookie":
+        cookie_input = getattr(args, "cookie", None)
+        cookie_file = getattr(args, "file", None)
+        if cookie_file:
+            try:
+                with open(cookie_file, "r", encoding="utf-8") as f:
+                    cookie_input = f.read()
+            except Exception as e:
+                print(f"\033[91mError reading cookie file {cookie_file}: {e}\033[0m")
+                sys.exit(1)
+        elif not cookie_input:
+            print("Paste your browser session cookie, Netscape cookie block, or JSESSIONID:")
+            print("(Paste content, then press Enter or Ctrl+D when finished)")
+            lines = []
+            try:
+                while True:
+                    line = input()
+                    if not line and lines:
+                        break
+                    lines.append(line)
+            except EOFError:
+                pass
+            cookie_input = "\n".join(lines).strip()
+
+        from tplink_router.core.cookie_parser import extract_jsessionid
+        extracted = extract_jsessionid(cookie_input)
+        if not extracted:
+            print("\033[91mFailed to extract valid JSESSIONID from the provided text.\033[0m")
+            print("Expected format: Netscape cookie file, 'Cookie: JSESSIONID=...', or 30-32 character hex token.")
+            sys.exit(1)
+
+        cfg_mgr.save(session_cookie=extracted)
+        masked = f"{extracted[:6]}...{extracted[-6:]}" if len(extracted) > 12 else extracted
+        print(f"\033[92mSession cookie (JSESSIONID: {masked}) successfully saved to {cfg_mgr.config_file}.\033[0m")
+    elif args.subcommand == "clear-cookie":
+        cfg_mgr.save(session_cookie="")
+        print(f"\033[92mStored session cookie cleared from {cfg_mgr.config_file}.\033[0m")
     elif args.subcommand == "show":
         cfg = cfg_mgr.load()
-        has_pwd = bool(cfg["password"])
-        print(f"Config File   : {cfg_mgr.config_file}")
-        print(f"Router Host   : {cfg['host']}")
-        print(f"Username      : {cfg['username']}")
-        print(f"Expected SSID : {cfg.get('expected_ssid') or '[Any]'}")
-        print(f"Password      : {'[STORED - ' + str(len(cfg['password'])) + ' chars]' if has_pwd else '[NOT SET]'}")
+        has_pwd = bool(cfg.get("password"))
+        cookie_val = cfg.get("session_cookie")
+        has_cookie = bool(cookie_val)
+        masked_cookie = f"{cookie_val[:6]}...{cookie_val[-6:]}" if (cookie_val and len(cookie_val) > 12) else "[SET]"
+        print(f"Config File    : {cfg_mgr.config_file}")
+        print(f"Router Host    : {cfg['host']}")
+        print(f"Username       : {cfg['username']}")
+        print(f"Expected SSID  : {cfg.get('expected_ssid') or '[Any]'}")
+        print(f"Password       : {'[STORED - ' + str(len(cfg['password'])) + ' chars]' if has_pwd else '[NOT SET]'}")
+        print(f"Session Cookie : {masked_cookie if has_cookie else '[NOT SET]'}")
+
+
+def cmd_wifi_guard(args: argparse.Namespace):
+    """Diagnoses and prepares wireless connection for calibration without Ethernet."""
+    import subprocess
+    import shutil
+
+    print("\n" + "=" * 65)
+    print("  \033[1mWI-FI ONLY OPERATION & LINK STABILITY GUARD\033[0m")
+    print("=" * 65)
+
+    ssid = NetworkGuard.get_current_ssid()
+    gw = NetworkGuard.get_current_gateway()
+
+    print(f"Connected Wi-Fi SSID : \033[1m{ssid or 'Unknown'}\033[0m")
+    print(f"Default Gateway      : {gw or 'Unknown'}")
+
+    # Check power save on wireless interface
+    ps_status = "Unknown"
+    wlan_iface = "wlo1"
+    try:
+        res = subprocess.run(["iw", "dev"], capture_output=True, text=True, check=False)
+        for line in res.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("Interface "):
+                wlan_iface = line.split()[1]
+                break
+        res_ps = subprocess.run(["iw", "dev", wlan_iface, "get", "power_save"], capture_output=True, text=True, check=False)
+        if "Power save: on" in res_ps.stdout:
+            ps_status = "ON (Power Saving Active)"
+        elif "Power save: off" in res_ps.stdout:
+            ps_status = "OFF (High Performance)"
+    except Exception:
+        pass
+
+    print(f"Wireless Interface   : {wlan_iface}")
+    print(f"Wi-Fi Power Save     : {ps_status}")
+
+    # Check autoconnect priority
+    nm_priority = "N/A"
+    if ssid and shutil.which("nmcli"):
+        try:
+            res_nm = subprocess.run(
+                ["nmcli", "-t", "-f", "connection.autoconnect-priority", "connection", "show", ssid],
+                capture_output=True, text=True, check=False
+            )
+            for line in res_nm.stdout.splitlines():
+                if "connection.autoconnect-priority" in line:
+                    nm_priority = line.split(":")[-1].strip()
+                    break
+        except Exception:
+            pass
+
+    print(f"Autoconnect Priority : {nm_priority}")
+    print("-" * 65)
+
+    if getattr(args, "fix", False) or getattr(args, "optimize", False):
+        print("\033[93mApplying Wi-Fi Stability Optimizations...\033[0m")
+        # 1. Set expected SSID in config
+        if ssid:
+            cfg_mgr = ConfigManager()
+            cfg_mgr.save(expected_ssid=ssid)
+            print(f"  ✓ Locked Network Guard to expected SSID: {ssid}")
+
+        # 2. Elevate autoconnect priority if nmcli is available
+        if ssid and shutil.which("nmcli"):
+            try:
+                subprocess.run(
+                    ["nmcli", "connection", "modify", ssid, "connection.autoconnect-priority", "50"],
+                    capture_output=True, text=True, check=False
+                )
+                print(f"  ✓ Elevated NetworkManager autoconnect-priority for '{ssid}' to 50")
+            except Exception as e:
+                print(f"  ! Could not set autoconnect-priority: {e}")
+
+        # 3. Disable power save if iw is available
+        try:
+            subprocess.run(["iw", "dev", wlan_iface, "set", "power_save", "off"], capture_output=True, text=True, check=False)
+            print(f"  ✓ Requested Wi-Fi power save OFF on {wlan_iface}")
+        except Exception:
+            pass
+
+        print("\n\033[92m[READY] System is optimized for wireless-only calibration without Ethernet!\033[0m\n")
+    else:
+        print("💡 \033[1mHow Wi-Fi Only Mode Works:\033[0m")
+        print("  1. The Archer MR200's Wi-Fi Access Point radio remains RUNNING even when")
+        print("     cellular LTE frequency bands are switched or cell locked.")
+        print("  2. Local Wi-Fi ping/HTTP to 192.168.1.1 will NOT disconnect.")
+        print("  3. Only upstream internet traffic pauses for 5-15s during cell attach.")
+        print("  4. Run `tplink-cli wifi-guard --optimize` to prevent NetworkManager from")
+        print("     roaming to campus Wi-Fi or hotspot during calibration pauses.")
+        print("=" * 65 + "\n")
 
 
 def cmd_repl(args: argparse.Namespace):
@@ -449,6 +588,7 @@ def main():
     parser.add_argument("--host", help="Router IP/Host (default: http://192.168.1.1)")
     parser.add_argument("--username", help="Admin username (default: admin)")
     parser.add_argument("--password", help="Admin password (overrides stored config)")
+    parser.add_argument("--cookie", "--session-id", dest="cookie", help="Browser session cookie (JSESSIONID or Netscape format)")
     parser.add_argument("--force", action="store_true", help="Bypass Network Guard checks")
     parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
 
@@ -517,8 +657,17 @@ def main():
     cfg_set = cfg_sub.add_parser("set-password", help="Save router admin password securely")
     cfg_set.add_argument("password", nargs="?", help="Admin password (prompts if omitted)")
     cfg_set.add_argument("--expected-ssid", help="Expected Wi-Fi SSID for safety guard")
+    cfg_cookie = cfg_sub.add_parser("set-cookie", help="Save browser session cookie (Netscape or JSESSIONID format)")
+    cfg_cookie.add_argument("cookie", nargs="?", help="Cookie string, Netscape block, or JSESSIONID")
+    cfg_cookie.add_argument("--file", "-f", help="Path to Netscape cookies.txt file")
+    cfg_clear = cfg_sub.add_parser("clear-cookie", help="Clear saved session cookie")
     cfg_show = cfg_sub.add_parser("show", help="Show current configuration")
     p_cfg.set_defaults(func=cmd_config)
+
+    # wifi-guard
+    p_wguard = subparsers.add_parser("wifi-guard", help="Verify and optimize Wi-Fi link stability (no Ethernet needed)")
+    p_wguard.add_argument("--optimize", "--fix", dest="optimize", action="store_true", help="Auto-optimize Wi-Fi stability and elevate NetworkManager priority")
+    p_wguard.set_defaults(func=cmd_wifi_guard)
 
     # clients
     p_clients = subparsers.add_parser("clients", help="List connected LAN devices (IP, MAC, Hostname)")

@@ -32,7 +32,8 @@ class RouterClientFactory:
 
     @classmethod
     def get_client(cls, host: str, password: str, username: str = "admin",
-                   force_family: Optional[str] = None, timeout: int = 25) -> Union[TPLinkMRClient, TPLinkBroadbandClient]:
+                   force_family: Optional[str] = None, timeout: int = 25,
+                   session_cookie: Optional[str] = None) -> Union[TPLinkMRClient, TPLinkBroadbandClient]:
         """Creates an authenticated client instance appropriate for the target hardware."""
         family = force_family or cls.detect_model_family(host, timeout=5)
 
@@ -41,4 +42,4 @@ class RouterClientFactory:
             return TPLinkBroadbandClient(host=host, password=password, username=username, timeout=timeout)
 
         logger.info("Initializing TP-Link MR LTE Client (MR200/MR6400/MR600)...")
-        return TPLinkMRClient(host=host, password=password, username=username, timeout=timeout)
+        return TPLinkMRClient(host=host, password=password, username=username, timeout=timeout, session_cookie=session_cookie)

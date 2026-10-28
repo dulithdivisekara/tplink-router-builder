@@ -18,10 +18,11 @@ server = MCPServer("universal-tplink-mcp")
 
 def _get_client_and_verify(force: bool = False):
     cfg = ConfigManager().load()
-    if not cfg.get("password"):
+    if not cfg.get("password") and not cfg.get("session_cookie"):
         raise ValueError(
-            "No password configured for TP-Link router. "
-            "Please configure using `tplink-cli config set-password` or set $TPLINK_PASSWORD."
+            "No password or session cookie configured for TP-Link router. "
+            "Please configure using `tplink-cli config set-password`, `tplink-cli config set-cookie`, "
+            "or set $TPLINK_PASSWORD or $TPLINK_SESSION_COOKIE."
         )
 
     # Check network safety (protect against sending commands while on Campus Wi-Fi or Hotspot)
@@ -29,7 +30,12 @@ def _get_client_and_verify(force: bool = False):
     if not is_safe:
         raise ConnectionError(f"Network Guard blocked execution: {msg}")
 
-    return RouterClientFactory.get_client(host=cfg["host"], password=cfg["password"], username=cfg["username"])
+    return RouterClientFactory.get_client(
+        host=cfg["host"],
+        password=cfg.get("password", ""),
+        username=cfg.get("username", "admin"),
+        session_cookie=cfg.get("session_cookie")
+    )
 
 
 @server.tool()

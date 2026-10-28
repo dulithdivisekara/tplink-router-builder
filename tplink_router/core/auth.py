@@ -55,26 +55,57 @@ def tp_rsa_encrypt(text: str, nn_hex: str, ee_hex: str, rsa_bits: int = 512, fla
 class MultiProtocolAuth:
     """Manages authentication, token tracking, and clean session logout."""
 
-    def __init__(self, host: str, session: Optional[requests.Session] = None):
+    def __init__(self, host: str, session: Optional[requests.Session] = None, session_cookie: Optional[str] = None):
         self.host = host.rstrip("/")
         self.session = session or requests.Session()
         self.session.headers.update({
             "Referer": f"{self.host}/",
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         })
+        self.session_cookie = session_cookie
         self.stok: Optional[str] = None
         self.token_id: Optional[str] = None
         self.is_authenticated = False
 
+        # GDPR encryption session context
+        self.aes_key: Optional[str] = None
+        self.aes_iv: Optional[str] = None
+        self.h: Optional[str] = None
+        self.seq: int = 0
+        self.nn: Optional[str] = None
+        self.ee: Optional[str] = None
+
     def login(self, username: str, password: str) -> bool:
-        """Attempts multi-protocol login: modern GDPR AES-CBC+RSA first, legacy fallback second."""
+        """Attempts multi-protocol login: session cookie bypass first, modern GDPR second, legacy third."""
+        # 1. Try session cookie bypass if provided
+        if self.session_cookie:
+            if self._verify_session_cookie(self.session_cookie):
+                return True
+
+        # 2. Modern GDPR encryption handshake
         try:
             return self._login_modern_gdpr(username, password)
         except Exception as e:
             if "Incorrect" in str(e) or "71233" in str(e):
                 raise
-            # Try legacy login fallback
+            # 3. Try legacy login fallback
             return self._login_legacy(username, password)
+
+    def _verify_session_cookie(self, cookie: str) -> bool:
+        """Tests if a supplied browser JSESSIONID cookie is alive and valid."""
+        host_domain = urllib.parse.urlparse(self.host).hostname or "192.168.1.1"
+        self.session.cookies.set("JSESSIONID", cookie, domain=host_domain, path="/")
+        try:
+            resp = self.session.get(f"{self.host}/", timeout=5)
+            if resp.status_code == 200:
+                token_match = re.search(r'var token=\"([a-f0-9]+)\"', resp.text)
+                if token_match:
+                    self.token_id = token_match.group(1)
+                    self.is_authenticated = True
+                    return True
+        except Exception:
+            pass
+        return False
 
     def _login_modern_gdpr(self, username: str, password: str) -> bool:
         """Modern TP-Link GDPR encryption handshake."""
@@ -122,7 +153,23 @@ class MultiProtocolAuth:
         ret = res_data.get("ret")
         if ret == 0:
             self.is_authenticated = True
-            # Check for token or stok in headers or cookies
+            self.aes_key = aes_key
+            self.aes_iv = aes_iv
+            self.h = h
+            self.seq = seq
+            self.nn = nn
+            self.ee = ee
+
+            # Extract TokenID from root page
+            try:
+                root_resp = self.session.get(f"{self.host}/", timeout=5)
+                token_match = re.search(r'var token=\"([a-f0-9]+)\"', root_resp.text)
+                if token_match:
+                    self.token_id = token_match.group(1)
+            except Exception:
+                pass
+
+            # Check for stok
             if "stok" in login_resp.text:
                 m = re.search(r'stok=([a-zA-Z0-9%_-]+)', login_resp.text)
                 if m:
@@ -132,6 +179,28 @@ class MultiProtocolAuth:
             raise PermissionError("Incorrect router admin password.")
         else:
             raise PermissionError(f"Router login rejected with code {ret}")
+
+    def encrypt_gdpr_data(self, data_str: str) -> tuple[str, str]:
+        """Encrypts payload for /cgi_gdpr endpoint and generates RSA signature."""
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        from cryptography.hazmat.backends import default_backend
+
+        c = Cipher(algorithms.AES(self.aes_key.encode("utf-8")), modes.CBC(self.aes_iv.encode("utf-8")), backend=default_backend())
+        enc_bytes = c.encryptor().update(pkcs7_pad(data_str.encode("utf-8"))) + c.encryptor().finalize()
+        enc_b64 = base64.b64encode(enc_bytes).decode("utf-8")
+
+        sig_str = f"h={self.h}&s={self.seq + len(enc_b64)}"
+        rsa_sig = tp_rsa_encrypt(sig_str, self.nn, self.ee, rsa_bits=512, flag=0)
+        return rsa_sig, enc_b64
+
+    def decrypt_gdpr_data(self, enc_b64: str) -> str:
+        """Decrypts base64 AES data from /cgi_gdpr response."""
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        from cryptography.hazmat.backends import default_backend
+
+        c = Cipher(algorithms.AES(self.aes_key.encode("utf-8")), modes.CBC(self.aes_iv.encode("utf-8")), backend=default_backend())
+        dec_bytes = c.decryptor().update(base64.b64decode(enc_b64)) + c.decryptor().finalize()
+        return pkcs7_unpad(dec_bytes).decode("utf-8", errors="replace")
 
     def _login_legacy(self, username: str, password: str) -> bool:
         """Legacy TP-Link plain or basic encoded authentication."""

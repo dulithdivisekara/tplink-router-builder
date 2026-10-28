@@ -50,13 +50,14 @@ class ActItem:
 class TPLinkMRClient:
     """Specialized client for TP-Link 4G/LTE gateway routers."""
 
-    def __init__(self, host: str, password: str, username: str = "admin", timeout: int = 25):
+    def __init__(self, host: str, password: str, username: str = "admin", timeout: int = 25,
+                 session_cookie: Optional[str] = None):
         self.host = host.rstrip("/")
         self.username = username
         self.password = password
         self.timeout = timeout
         self.session = requests.Session()
-        self.auth = MultiProtocolAuth(self.host, self.session)
+        self.auth = MultiProtocolAuth(self.host, self.session, session_cookie=session_cookie)
 
     def login(self) -> bool:
         return self.auth.login(self.username, self.password)
@@ -65,7 +66,7 @@ class TPLinkMRClient:
         self.auth.logout()
 
     def req_act(self, acts: List[ActItem]) -> Dict[str, Any]:
-        """Executes a batch of OID actions via the router's /cgi endpoint."""
+        """Executes a batch of OID actions via modern GDPR encrypted or legacy /cgi endpoint."""
         if not self.auth.is_authenticated:
             self.login()
 
@@ -79,27 +80,45 @@ class TPLinkMRClient:
                 + "\r\n".join(act.attrs) + "\r\n"
             )
 
-        data = "".join(act_data)
-        url = f"{self.host}/cgi?" + "&".join(act_types)
+        data = "&".join(act_types) + "\r\n" + "".join(act_data)
 
         headers = {
             "Referer": f"{self.host}/",
             "Content-Type": "text/plain",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "*/*",
         }
-        if hasattr(self.auth, "token") and self.auth.token:
-            headers["TokenID"] = self.auth.token
+        if self.auth.token_id:
+            headers["TokenID"] = self.auth.token_id
 
-        resp = self.session.post(url, data=data, headers=headers, timeout=self.timeout)
-        if resp.status_code == 403 or "login.htm" in resp.text:
-            self.login()
-            if hasattr(self.auth, "token") and self.auth.token:
-                headers["TokenID"] = self.auth.token
-            resp = self.session.post(url, data=data, headers=headers, timeout=self.timeout)
+        # Use modern GDPR encryption if session AES key was negotiated
+        if self.auth.aes_key:
+            sig, enc_data = self.auth.encrypt_gdpr_data(data)
+            post_body = f"sign={sig}\r\ndata={enc_data}\r\n"
+            url = f"{self.host}/cgi_gdpr?_={int(time.time() * 1000)}"
 
-        if resp.status_code != 200:
-            raise ConnectionError(f"Router returned HTTP {resp.status_code}")
+            resp = self.session.post(url, data=post_body, headers=headers, timeout=self.timeout)
+            if resp.status_code == 500 or resp.status_code == 403 or "login.htm" in resp.text:
+                self.login()
+                if self.auth.token_id:
+                    headers["TokenID"] = self.auth.token_id
+                sig, enc_data = self.auth.encrypt_gdpr_data(data)
+                post_body = f"sign={sig}\r\ndata={enc_data}\r\n"
+                url = f"{self.host}/cgi_gdpr?_={int(time.time() * 1000)}"
+                resp = self.session.post(url, data=post_body, headers=headers, timeout=self.timeout)
 
-        return self._parse_oid_response(resp.text)
+            if resp.status_code != 200:
+                raise ConnectionError(f"Router returned HTTP {resp.status_code}")
+
+            decrypted_text = self.auth.decrypt_gdpr_data(resp.text)
+            return self._parse_oid_response(decrypted_text)
+        else:
+            # Legacy unencrypted fallback
+            url = f"{self.host}/cgi?" + "&".join(act_types)
+            resp = self.session.post(url, data="".join(act_data), headers=headers, timeout=self.timeout)
+            if resp.status_code != 200:
+                raise ConnectionError(f"Router returned HTTP {resp.status_code}")
+            return self._parse_oid_response(resp.text)
 
     @staticmethod
     def _parse_oid_response(text: str) -> Dict[str, Any]:
@@ -150,11 +169,11 @@ class TPLinkMRClient:
             ActItem(ActItem.GET, "WAN_LTE_INTF_CFG", stack="2,0,0,0,0,0",
                     attrs=["curRxSpeed", "curTxSpeed", "totalStatistics"]),
             ActItem(ActItem.GET, "LTE_WAN_CFG", stack="2,1,0,0,0,0", attrs=["profileName"]),
-            ActItem(ActItem.GET, "LTE_BANDINFO", attrs=["band", "earfcn", "pci", "rsrp", "rsrq", "snr"]),
-            ActItem(ActItem.GET, "LTE_NET_STATUS", attrs=[
+            ActItem(ActItem.GET, "LTE_BANDINFO", stack="2,1,0,0,0,0", attrs=["band", "earfcn", "pci", "rsrp", "rsrq", "snr"]),
+            ActItem(ActItem.GET, "LTE_NET_STATUS", stack="2,1,0,0,0,0", attrs=[
                 "smsUnreadCount", "sigLevel", "rfInfoRsrp", "rfInfoRsrq", "rfInfoSnr"
             ]),
-            ActItem(ActItem.GET, "LTE_CELL_LOCK", attrs=["enable", "earfcn", "pci", "cid", "freq"]),
+            ActItem(ActItem.GET, "LTE_CELL_LOCK", stack="2,1,0,0,0,0", attrs=["enable", "earfcn", "pci", "cid", "freq"]),
         ]
         res = self.req_act(acts)
 
@@ -201,8 +220,8 @@ class TPLinkMRClient:
         )
 
         return LTEStatus(
-            connected=link_cfg.get("connectStatus") == "1",
-            sim_status="Ready" if link_cfg.get("simStatus") == "1" else "No SIM / Locked",
+            connected=link_cfg.get("connectStatus") in ("1", "4"),
+            sim_status="Ready" if link_cfg.get("simStatus") in ("1", "3") else "No SIM / Locked",
             isp_name=wan_cfg.get("profileName", "Hutch"),
             band=band or "Auto / LTE",
             earfcn=earfcn,

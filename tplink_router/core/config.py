@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from tplink_router.core.cookie_parser import extract_jsessionid
+
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "tplink-router"
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.json"
 DEFAULT_HOST = "http://192.168.1.1"
@@ -36,10 +38,11 @@ class ConfigManager:
 
     def load(self, cli_host: Optional[str] = None,
              cli_username: Optional[str] = None,
-             cli_password: Optional[str] = None) -> Dict[str, Any]:
+             cli_password: Optional[str] = None,
+             cli_cookie: Optional[str] = None) -> Dict[str, Any]:
         """Resolves configuration with precedence:
-        1. CLI arguments
-        2. Environment variables (TPLINK_ROUTER_IP, TPLINK_PASSWORD, etc.)
+        1. CLI arguments (--cookie, --password, etc.)
+        2. Environment variables (TPLINK_COOKIE, TPLINK_PASSWORD, etc.)
         3. Local project .env or $TPLINK_ENV
         4. User configuration file (~/.config/tplink-router/config.json)
         5. Defaults
@@ -49,6 +52,7 @@ class ConfigManager:
             "host": DEFAULT_HOST,
             "username": DEFAULT_USERNAME,
             "password": "",
+            "session_cookie": "",
             "expected_ssid": "",
             "auto_detect": True,
         }
@@ -81,6 +85,9 @@ class ConfigManager:
             config["username"] = env_vars.get("ROUTER_USERNAME") or env_vars.get("TPLINK_USERNAME")
         if "ROUTER_PASSWORD" in env_vars or "TPLINK_PASSWORD" in env_vars:
             config["password"] = env_vars.get("ROUTER_PASSWORD") or env_vars.get("TPLINK_PASSWORD")
+        if "TPLINK_SESSION_COOKIE" in env_vars or "TPLINK_COOKIE" in env_vars:
+            raw_c = env_vars.get("TPLINK_SESSION_COOKIE") or env_vars.get("TPLINK_COOKIE")
+            config["session_cookie"] = extract_jsessionid(raw_c) or raw_c
         if "EXPECTED_SSID" in env_vars:
             config["expected_ssid"] = env_vars["EXPECTED_SSID"]
 
@@ -91,6 +98,9 @@ class ConfigManager:
             config["username"] = os.environ["TPLINK_USERNAME"]
         if os.environ.get("TPLINK_PASSWORD"):
             config["password"] = os.environ["TPLINK_PASSWORD"]
+        if os.environ.get("TPLINK_SESSION_COOKIE") or os.environ.get("TPLINK_COOKIE"):
+            raw_c = os.environ.get("TPLINK_SESSION_COOKIE") or os.environ.get("TPLINK_COOKIE")
+            config["session_cookie"] = extract_jsessionid(raw_c) or raw_c
         if os.environ.get("TPLINK_EXPECTED_SSID"):
             config["expected_ssid"] = os.environ["TPLINK_EXPECTED_SSID"]
 
@@ -101,6 +111,8 @@ class ConfigManager:
             config["username"] = cli_username
         if cli_password:
             config["password"] = cli_password
+        if cli_cookie:
+            config["session_cookie"] = extract_jsessionid(cli_cookie) or cli_cookie
 
         # Normalize host URL
         if not config["host"].startswith("http"):
@@ -108,18 +120,28 @@ class ConfigManager:
 
         return config
 
-    def save(self, password: str, host: str = DEFAULT_HOST,
-             username: str = DEFAULT_USERNAME, expected_ssid: str = ""):
+    def save(self, password: Optional[str] = None, host: str = DEFAULT_HOST,
+             username: str = DEFAULT_USERNAME, expected_ssid: str = "",
+             session_cookie: Optional[str] = None):
         """Saves configuration with owner-only (0600) permissions."""
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         if not host.startswith("http"):
             host = f"http://{host}"
 
+        existing = {}
+        if self.config_file.exists():
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f:
+                    existing = json.load(f)
+            except Exception:
+                pass
+
         payload = {
-            "host": host,
-            "username": username,
-            "password": password,
-            "expected_ssid": expected_ssid,
+            "host": host or existing.get("host", DEFAULT_HOST),
+            "username": username or existing.get("username", DEFAULT_USERNAME),
+            "password": password if password is not None else existing.get("password", ""),
+            "session_cookie": extract_jsessionid(session_cookie) if session_cookie else existing.get("session_cookie", ""),
+            "expected_ssid": expected_ssid or existing.get("expected_ssid", ""),
         }
 
         with open(self.config_file, "w", encoding="utf-8") as f:
