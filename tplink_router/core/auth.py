@@ -215,6 +215,10 @@ class MultiProtocolAuth:
         """Releases the router's single-admin lock so other sessions (like browser) remain working."""
         if not self.is_authenticated:
             return
+        if self.session_cookie:
+            # Preserve shared browser session cookie on the router hardware
+            self.is_authenticated = False
+            return
         try:
             logout_url = f"{self.host}/cgi/logout"
             self.session.post(logout_url, data="", timeout=5)

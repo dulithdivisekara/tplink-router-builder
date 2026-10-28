@@ -89,6 +89,23 @@ class TestCalibrationEngine(unittest.TestCase):
         success = self.calibrator.revert_to_auto()
         self.assertTrue(success)
 
+    @patch("tplink_router.calibration.engine.RouterClientFactory.get_client")
+    def test_init_client_with_session_cookie(self, mock_get_client):
+        cal = RouterCalibrator(
+            host="http://192.168.1.1",
+            session_cookie="dummy_session_12345",
+            dry_run=False,
+        )
+        success = cal._init_client()
+        self.assertTrue(success)
+        mock_get_client.assert_called_once_with(
+            host="http://192.168.1.1",
+            password=None,
+            username="admin",
+            session_cookie="dummy_session_12345",
+            timeout=10,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -62,6 +62,7 @@ def main():
     # Resolve credentials via ConfigManager if not passed
     cfg = ConfigManager().load(cli_host=args.host, cli_username=args.username, cli_password=args.password)
     password = cfg.get("password") or args.password
+    session_cookie = cfg.get("session_cookie")
 
     target_bands = [b.strip() for b in args.bands.split(",") if b.strip()]
 
@@ -81,6 +82,7 @@ def main():
     calibrator = RouterCalibrator(
         host=args.host,
         password=password,
+        session_cookie=session_cookie,
         username=args.username,
         bands=target_bands,
         watchdog_timeout=args.timeout,

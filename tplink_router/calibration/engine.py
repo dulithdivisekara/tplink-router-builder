@@ -79,6 +79,7 @@ class RouterCalibrator:
         self,
         host: str = "http://192.168.1.1",
         password: Optional[str] = None,
+        session_cookie: Optional[str] = None,
         username: str = "admin",
         bands: Optional[List[str]] = None,
         watchdog_timeout: int = DEFAULT_WATCHDOG_SEC,
@@ -88,6 +89,7 @@ class RouterCalibrator:
     ):
         self.host = host.rstrip("/")
         self.password = password
+        self.session_cookie = session_cookie
         self.username = username
         self.bands = [b.lower().replace("band", "").strip() for b in (bands or DEFAULT_BANDS)]
         self.watchdog_timeout = watchdog_timeout
@@ -167,7 +169,7 @@ class RouterCalibrator:
 
     def _init_client(self) -> bool:
         """Initializes client session if credentials are supplied."""
-        if self.dry_run or not self.password:
+        if self.dry_run or (not self.password and not self.session_cookie):
             self._log("Running in unauthenticated / read-only network probe mode.", "WARN")
             return False
         try:
@@ -175,6 +177,7 @@ class RouterCalibrator:
                 host=self.host,
                 password=self.password,
                 username=self.username,
+                session_cookie=self.session_cookie,
                 timeout=10,
             )
             return True

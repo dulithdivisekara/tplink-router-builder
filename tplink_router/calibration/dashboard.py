@@ -28,6 +28,9 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TP-Link Autonomous RF Calibration Lab | Dulith Divisekara</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -35,180 +38,292 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
       theme: {
         extend: {
           colors: {
-            tplink: { cyan: '#00B4D8', dark: '#0A1128', card: '#111827', accent: '#0077B6' }
+            obsidian: '#070b12',
+            surface: {
+              DEFAULT: '#0d1522',
+              card: '#111b2b',
+              muted: '#172338',
+              border: 'rgba(56, 189, 248, 0.14)'
+            },
+            signal: {
+              cyan: '#00e5ff',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              rose: '#f43f5e',
+              sky: '#38bdf8'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
           }
         }
       }
     }
   </script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
-    .pulse-ring { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.05); } }
+    body {
+      font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background-color: #070b12;
+      color: #f1f5f9;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    .panel {
+      background: #0d1522;
+      border: 1px solid rgba(56, 189, 248, 0.12);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    }
+    .panel-accent {
+      background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, #0d1522 100%);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+    }
+    .pulse-ring {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .35; transform: scale(1.15); }
+    }
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.2);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.4);
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-cyan-500 selection:text-white">
+<body class="min-h-screen flex flex-col selection:bg-cyan-500 selection:text-black">
 
-  <!-- Top Navigation Header -->
-  <header class="glass sticky top-0 z-50 px-6 py-4 border-b border-white/10 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-sky-400 flex items-center justify-center shadow-lg shadow-cyan-500/20 font-bold text-white text-lg">
-        TP
+  <!-- Top Navigation & Instrument Header -->
+  <header class="panel sticky top-0 z-50 px-6 py-3.5 border-b border-surface-border/60 backdrop-blur-md bg-opacity-90 flex items-center justify-between">
+    <div class="flex items-center space-x-3.5">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 font-bold text-black text-sm tracking-tighter">
+        <svg class="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.14 0M1.393 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+        </svg>
       </div>
       <div>
-        <h1 class="text-base font-semibold tracking-tight text-white flex items-center space-x-2">
-          <span>TP-Link Autonomous RF Calibration Lab</span>
-          <span class="px-2 py-0.5 text-[10px] uppercase font-mono tracking-wider rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">AGY SDK</span>
-        </h1>
-        <p class="text-xs text-slate-400">Malabe, Sri Lanka (SLIIT Zone) • Hutch 20Mbps Unlimited LTE</p>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-sm font-semibold tracking-tight text-white">TP-Link Autonomous RF Calibration Lab</h1>
+          <span class="px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">AGY Autonomous Engine</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Malabe, Sri Lanka (SLIIT Zone) • Hutch 20Mbps LTE • Archer MR200</p>
       </div>
     </div>
 
-    <!-- Live Status Indicators & Controls -->
-    <div class="flex items-center space-x-3">
-      <div id="status-pill" class="flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+    <!-- Live Controls & Status Badges -->
+    <div class="flex items-center space-x-2.5">
+      <div id="status-pill" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
         <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-ring"></span>
         <span id="status-text">CONNECTING</span>
       </div>
 
-      <button onclick="revertAuto()" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 transition flex items-center space-x-1">
+      <button onclick="revertAuto()" title="Rollback carrier lock to dynamic multi-band roaming" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 transition-all flex items-center space-x-1.5 active:scale-95">
         <span>⟳ Emergency Auto</span>
       </button>
 
-      <button id="btn-calibrate" onclick="startCalibration()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md shadow-cyan-500/20 transition">
-        ▶ Start Calibration
+      <button id="btn-calibrate" onclick="startCalibration()" class="px-4 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-cyan-500 to-sky-500 hover:from-cyan-400 hover:to-sky-400 text-black shadow-md shadow-cyan-500/20 transition-all active:scale-95 flex items-center space-x-1.5">
+        <span>▶ Start Calibration</span>
       </button>
     </div>
   </header>
 
-  <!-- Main Container -->
+  <!-- Main Telemetry Workspace -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
 
-    <!-- Active Telemetry & Watchdog Banner -->
+    <!-- Primary Telemetry Cluster: Instrument Deck -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <!-- Active Band Card -->
-      <div class="glass rounded-2xl p-5 border border-white/5 relative overflow-hidden">
-        <div class="text-xs font-medium uppercase tracking-wider text-slate-400">Active Carrier Band</div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span id="active-band" class="text-3xl font-extrabold text-cyan-400 font-mono">--</span>
-          <span id="active-freq" class="text-xs text-slate-400 font-mono">Scanning...</span>
+      
+      <!-- Carrier Band Card -->
+      <div class="panel rounded-xl p-4 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Active Carrier</span>
+          <span class="text-[10px] font-mono text-cyan-400">LTE RF</span>
         </div>
-        <div id="active-rain-tag" class="mt-3 text-[11px] text-slate-400">Penetration: Analyzing RF link</div>
+        <div class="my-2">
+          <div class="flex items-baseline space-x-2">
+            <span id="active-band" class="text-3xl font-extrabold text-white font-mono tracking-tight">--</span>
+            <span id="active-freq" class="text-xs text-cyan-300 font-mono">Scanning...</span>
+          </div>
+          <div id="active-rain-tag" class="mt-1 text-[11px] text-slate-400">Analyzing RF link</div>
+        </div>
+        <div class="w-full bg-slate-800/80 rounded-full h-1 mt-1 overflow-hidden">
+          <div class="bg-cyan-400 h-1 rounded-full w-full"></div>
+        </div>
       </div>
 
-      <!-- Ping Latency Card -->
-      <div class="glass rounded-2xl p-5 border border-white/5">
-        <div class="text-xs font-medium uppercase tracking-wider text-slate-400">WAN Latency (1.1.1.1)</div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span id="metric-latency" class="text-3xl font-extrabold text-white font-mono">0.0</span>
-          <span class="text-xs text-slate-400 font-mono">ms</span>
+      <!-- Latency & WAN Target -->
+      <div class="panel rounded-xl p-4 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>WAN Latency</span>
+          <span class="text-[10px] font-mono text-slate-500">1.1.1.1</span>
         </div>
-        <div id="metric-jitter" class="mt-3 text-[11px] text-amber-400">Jitter: 0.0 ms</div>
+        <div class="my-2">
+          <div class="flex items-baseline space-x-1.5">
+            <span id="metric-latency" class="text-3xl font-extrabold text-white font-mono tabular-nums">0.0</span>
+            <span class="text-xs text-slate-400 font-mono">ms</span>
+          </div>
+          <div id="metric-jitter" class="mt-1 text-[11px] text-amber-400 font-mono tabular-nums">Jitter: 0.0 ms</div>
+        </div>
+        <div class="w-full bg-slate-800/80 rounded-full h-1 mt-1 overflow-hidden">
+          <div class="bg-sky-400 h-1 rounded-full w-2/3"></div>
+        </div>
       </div>
 
-      <!-- Packet Loss Card -->
-      <div class="glass rounded-2xl p-5 border border-white/5">
-        <div class="text-xs font-medium uppercase tracking-wider text-slate-400">Packet Loss</div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span id="metric-loss" class="text-3xl font-extrabold text-emerald-400 font-mono">0.0%</span>
+      <!-- Packet Loss & Rain Attenuation Alert -->
+      <div class="panel rounded-xl p-4 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Packet Loss</span>
+          <span class="text-[10px] font-mono text-slate-500">ICMP 20pkts</span>
         </div>
-        <div id="metric-weather-alert" class="mt-3 text-[11px] text-slate-400">Rain Attenuation: Normal</div>
+        <div class="my-2">
+          <div class="flex items-baseline space-x-1">
+            <span id="metric-loss" class="text-3xl font-extrabold text-emerald-400 font-mono tabular-nums">0.0%</span>
+          </div>
+          <div id="metric-weather-alert" class="mt-1 text-[11px] text-slate-400">Rain Attenuation: Normal</div>
+        </div>
+        <div class="w-full bg-slate-800/80 rounded-full h-1 mt-1 overflow-hidden">
+          <div class="bg-emerald-400 h-1 rounded-full w-full"></div>
+        </div>
       </div>
 
-      <!-- Fail-Safe Watchdog Countdown -->
-      <div class="glass rounded-2xl p-5 border border-white/5">
-        <div class="text-xs font-medium uppercase tracking-wider text-slate-400">45s Watchdog Fail-Safe</div>
-        <div class="mt-2 flex items-baseline space-x-2">
-          <span id="watchdog-val" class="text-3xl font-extrabold text-indigo-400 font-mono">ARMED</span>
+      <!-- Watchdog Fail-Safe Status -->
+      <div class="panel rounded-xl p-4 relative overflow-hidden flex flex-col justify-between">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Watchdog Guard</span>
+          <span class="text-[10px] font-mono text-indigo-400">45s Guard</span>
         </div>
-        <div class="mt-3 text-[11px] text-slate-400">Auto-reverts to AUTO if WAN blackouts</div>
+        <div class="my-2">
+          <div class="flex items-baseline space-x-1.5">
+            <span id="watchdog-val" class="text-3xl font-extrabold text-indigo-300 font-mono">ARMED</span>
+          </div>
+          <div class="mt-1 text-[11px] text-slate-400">Auto-reverts to AUTO on WAN drop</div>
+        </div>
+        <div class="w-full bg-slate-800/80 rounded-full h-1 mt-1 overflow-hidden">
+          <div class="bg-indigo-400 h-1 rounded-full w-full"></div>
+        </div>
       </div>
+
     </div>
 
-    <!-- RF Telemetry Arc Gauges & Live Oscilloscope -->
+    <!-- RF Signal Power Gauges & Real-Time Pulse Oscilloscope -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- RF Gauges -->
-      <div class="glass rounded-2xl p-6 border border-white/5 flex flex-col justify-between">
-        <h3 class="text-sm font-semibold text-white tracking-tight flex items-center space-x-2">
-          <span>Radio Frequency (RF) Signal Metrics</span>
-        </h3>
 
-        <div class="grid grid-cols-3 gap-3 my-6 text-center">
+      <!-- Signal Instrumentation Panel -->
+      <div class="panel rounded-xl p-5 flex flex-col justify-between space-y-4">
+        <div>
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold text-slate-200">Radio Frequency Signal Metrics</h2>
+            <span class="text-[10px] font-mono text-slate-500">Archer MR200</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-0.5">Cellular signal power, link quality, and signal-to-noise ratio</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2.5 text-center">
           <!-- RSRP Gauge -->
-          <div class="p-3 rounded-xl bg-white/5 border border-white/5">
-            <div class="text-[10px] text-slate-400 uppercase font-mono">RSRP (Power)</div>
-            <div id="gauge-rsrp" class="text-xl font-bold font-mono text-cyan-400 mt-1">-85</div>
-            <div class="text-[9px] text-slate-500">dBm (Target: &gt;-90)</div>
+          <div class="p-3 rounded-lg bg-surface-muted/60 border border-white/5">
+            <div class="text-[10px] text-slate-400 font-mono">RSRP</div>
+            <div id="gauge-rsrp" class="text-lg font-bold font-mono text-cyan-300 mt-1 tabular-nums">-85 dBm</div>
+            <div class="text-[9px] text-slate-500 mt-0.5">Target: &gt;-90</div>
           </div>
           <!-- RSRQ Gauge -->
-          <div class="p-3 rounded-xl bg-white/5 border border-white/5">
-            <div class="text-[10px] text-slate-400 uppercase font-mono">RSRQ (Quality)</div>
-            <div id="gauge-rsrq" class="text-xl font-bold font-mono text-sky-300 mt-1">-10</div>
-            <div class="text-[9px] text-slate-500">dB (Target: &gt;-12)</div>
+          <div class="p-3 rounded-lg bg-surface-muted/60 border border-white/5">
+            <div class="text-[10px] text-slate-400 font-mono">RSRQ</div>
+            <div id="gauge-rsrq" class="text-lg font-bold font-mono text-sky-300 mt-1 tabular-nums">-10 dB</div>
+            <div class="text-[9px] text-slate-500 mt-0.5">Target: &gt;-12</div>
           </div>
           <!-- SINR Gauge -->
-          <div class="p-3 rounded-xl bg-white/5 border border-white/5">
-            <div class="text-[10px] text-slate-400 uppercase font-mono">SINR (SNR)</div>
-            <div id="gauge-sinr" class="text-xl font-bold font-mono text-emerald-400 mt-1">18</div>
-            <div class="text-[9px] text-slate-500">dB (Target: &gt;13)</div>
+          <div class="p-3 rounded-lg bg-surface-muted/60 border border-white/5">
+            <div class="text-[10px] text-slate-400 font-mono">SINR</div>
+            <div id="gauge-sinr" class="text-lg font-bold font-mono text-emerald-400 mt-1 tabular-nums">18 dB</div>
+            <div class="text-[9px] text-slate-500 mt-0.5">Target: &gt;13</div>
           </div>
         </div>
 
-        <div class="text-xs text-slate-400 space-y-1">
-          <div class="flex justify-between"><span>Path MTU Clamping:</span> <span class="font-mono text-cyan-300">1420 Bytes (GTP Clamped)</span></div>
-          <div class="flex justify-between"><span>Congestion Control:</span> <span class="font-mono text-emerald-400">BBR active</span></div>
-          <div class="flex justify-between"><span>DNS Override:</span> <span class="font-mono text-slate-300">8.8.8.8, 1.1.1.1</span></div>
+        <div class="text-[11px] text-slate-400 space-y-2 pt-2 border-t border-white/5">
+          <div class="flex justify-between items-center">
+            <span>Path MTU Clamping</span>
+            <span class="font-mono text-cyan-300 bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20 text-[10px]">1420 Bytes (GTP)</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>TCP Congestion Control</span>
+            <span class="font-mono text-emerald-400 text-[10px]">BBR active</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span>DNS Overrides</span>
+            <span class="font-mono text-slate-300 text-[10px]">1.1.1.1, 8.8.8.8</span>
+          </div>
         </div>
       </div>
 
-      <!-- Real-Time Latency Oscilloscope -->
-      <div class="lg:col-span-2 glass rounded-2xl p-6 border border-white/5 flex flex-col justify-between">
+      <!-- Real-Time Latency & Jitter Pulse Oscilloscope -->
+      <div class="lg:col-span-2 panel rounded-xl p-5 flex flex-col justify-between space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="text-sm font-semibold text-white tracking-tight">Live Latency & Jitter Pulse Oscilloscope</h3>
-          <span class="text-xs text-slate-500 font-mono">Continuous Ping to 1.1.1.1</span>
+          <div>
+            <h2 class="text-xs font-semibold text-slate-200">Live Latency & Jitter Pulse Oscilloscope</h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">Real-time round-trip latency stream (ping to Cloudflare 1.1.1.1)</p>
+          </div>
+          <div class="flex items-center space-x-3 text-[11px]">
+            <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-cyan-400"></span><span class="text-slate-300 font-mono">Latency</span></span>
+            <span class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span><span class="text-slate-300 font-mono">Jitter</span></span>
+            <span id="canvas-rate" class="font-mono text-slate-500 text-[10px]">1s Pulse</span>
+          </div>
         </div>
-        <div class="my-3 h-44 w-full bg-slate-900/60 rounded-xl relative overflow-hidden border border-white/5">
+
+        <div class="h-48 w-full bg-obsidian rounded-lg relative overflow-hidden border border-white/5">
           <canvas id="osc-canvas" class="w-full h-full block"></canvas>
         </div>
-        <div class="flex items-center justify-between text-xs text-slate-400">
-          <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span><span>Latency (ms)</span></span>
-          <span class="flex items-center space-x-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span><span>Jitter Variance</span></span>
-          <span id="canvas-rate" class="font-mono text-slate-500 text-[10px]">Real-Time Pulse (1s)</span>
-        </div>
       </div>
+
     </div>
 
-    <!-- Multi-Band Comparison Scorecard Table -->
-    <div class="glass rounded-2xl p-6 border border-white/5 space-y-4">
-      <div class="flex items-center justify-between">
+    <!-- Multi-Band Comparison Scorecard & Rain Attenuation Matrix -->
+    <div class="panel rounded-xl p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h3 class="text-sm font-semibold text-white tracking-tight">Cellular Band Performance & Rain Attenuation Matrix</h3>
-          <p class="text-xs text-slate-400">Real-time sweep across Hutch Sri Lanka carriers (Band 8 900MHz, Band 3 1800MHz, Band 1, Band 40, Auto)</p>
+          <h2 class="text-sm font-semibold text-white">Cellular Band Performance & Rain Attenuation Matrix</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Comparative benchmark across Sri Lankan carrier frequencies (Band 8 900MHz, Band 3 1800MHz, Band 1, Band 40, Auto)</p>
         </div>
-        <a href="/api/report" target="_blank" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 transition">
-          📄 Export Markdown Report
+        <a href="/api/report" target="_blank" class="self-start sm:self-auto px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-muted hover:bg-surface-border/40 text-slate-200 border border-white/10 transition flex items-center space-x-1.5">
+          <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Export Markdown Report</span>
         </a>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs">
-          <thead class="text-[11px] uppercase tracking-wider text-slate-400 border-b border-white/10 font-mono">
+          <thead class="text-[11px] text-slate-400 border-b border-white/10 font-mono">
             <tr>
-              <th class="py-3 px-4">Carrier Band</th>
-              <th class="py-3 px-4">Frequency</th>
-              <th class="py-3 px-4">Packet Loss</th>
-              <th class="py-3 px-4">Latency (avg)</th>
-              <th class="py-3 px-4">Jitter</th>
-              <th class="py-3 px-4">SINR</th>
-              <th class="py-3 px-4">Rain Resilience</th>
-              <th class="py-3 px-4">Status / Action</th>
+              <th class="py-2.5 px-3.5 font-medium">Carrier Band</th>
+              <th class="py-2.5 px-3.5 font-medium">Frequency</th>
+              <th class="py-2.5 px-3.5 font-medium">Packet Loss</th>
+              <th class="py-2.5 px-3.5 font-medium">Latency (avg)</th>
+              <th class="py-2.5 px-3.5 font-medium">Jitter</th>
+              <th class="py-2.5 px-3.5 font-medium">SINR</th>
+              <th class="py-2.5 px-3.5 font-medium">Rain Resilience</th>
+              <th class="py-2.5 px-3.5 font-medium text-right">Action</th>
             </tr>
           </thead>
           <tbody id="matrix-tbody" class="divide-y divide-white/5 font-mono">
             <tr>
-              <td colspan="8" class="py-8 text-center text-slate-500 font-sans">
-                No bands evaluated yet. Click <strong>Start Calibration</strong> above to initiate autonomous sweep.
+              <td colspan="8" class="py-8 text-center text-slate-500 font-sans text-xs">
+                No bands evaluated yet. Click <span class="font-medium text-cyan-400">Start Calibration</span> above to initiate autonomous sweep.
               </td>
             </tr>
           </tbody>
@@ -216,34 +331,39 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- AGY Decision Synthesis Box -->
-    <div id="agy-card" class="hidden glass rounded-2xl p-6 border border-cyan-500/30 bg-gradient-to-br from-cyan-950/20 via-slate-900/60 to-slate-950 space-y-3">
+    <!-- AGY Autonomous Recommendation Intelligence Card -->
+    <div id="agy-card" class="hidden panel-accent rounded-xl p-5 border border-cyan-500/30 space-y-3">
       <div class="flex items-center space-x-2 text-cyan-400">
-        <span class="text-lg">🧠</span>
-        <h3 class="text-sm font-bold tracking-tight text-white uppercase font-mono">Google Antigravity (AGY) Autonomous Recommendation</h3>
+        <svg class="w-5 h-5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-white font-mono">Google Antigravity (AGY) Autonomous Recommendation</h3>
       </div>
-      <div id="agy-summary" class="text-sm text-slate-200 leading-relaxed">
-        Evaluating...
+      <div id="agy-summary" class="text-xs text-slate-200 leading-relaxed font-sans">
+        Evaluating telemetry and rain attenuation metrics...
       </div>
-      <div id="agy-actions" class="flex items-center space-x-3 pt-2">
+      <div id="agy-actions" class="flex items-center space-x-3 pt-1">
         <!-- Injected button -->
       </div>
     </div>
 
-    <!-- Live Execution Logs -->
-    <div class="glass rounded-2xl p-6 border border-white/5 space-y-3">
+    <!-- Live Execution Telemetry Stream -->
+    <div class="panel rounded-xl p-5 space-y-2.5">
       <div class="flex items-center justify-between">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">Live Telemetry & Engine Execution Log</h3>
+        <h2 class="text-xs font-semibold text-slate-300">Live Telemetry & Engine Execution Log</h2>
         <span id="log-count" class="text-[10px] text-slate-500 font-mono">0 events</span>
       </div>
-      <div id="log-box" class="h-36 overflow-y-auto rounded-xl bg-black/50 p-4 font-mono text-[11px] text-slate-300 space-y-1">
+      <div id="log-box" class="h-36 overflow-y-auto rounded-lg bg-black/60 p-3.5 font-mono text-[11px] text-slate-300 space-y-1 border border-white/5">
         <div>[00:00:00] [INFO] Dashboard initialized. Awaiting calibration trigger.</div>
       </div>
     </div>
+
   </main>
 
-  <footer class="mt-auto px-6 py-4 border-t border-white/5 text-center text-xs text-slate-500">
-    TP-Link Universal Agentic Ecosystem • Created by <a href="https://dulith.me" class="text-cyan-400 hover:underline">Dulith Divisekara</a> (SLIIT Malabe) • Powered by Google Antigravity SDK
+  <!-- Technical Footer -->
+  <footer class="mt-auto px-6 py-4 border-t border-white/5 text-center text-[11px] text-slate-500 flex flex-col sm:flex-row items-center justify-between max-w-7xl w-full mx-auto">
+    <span>TP-Link Universal Agentic Ecosystem • Archer MR200 LTE Suite</span>
+    <span>Created by <a href="https://dulith.me" target="_blank" class="text-cyan-400 hover:underline font-medium">Dulith Divisekara</a> (SLIIT Malabe) • Powered by Google Antigravity SDK</span>
   </footer>
 
   <script>
@@ -252,38 +372,76 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     let pingHistory = [];
 
     function resizeCanvas() {
+      if (!canvas.parentElement) return;
       canvas.width = canvas.parentElement.clientWidth;
       canvas.height = canvas.parentElement.clientHeight;
+      drawOscilloscope();
     }
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
+    setTimeout(resizeCanvas, 50);
 
     function drawOscilloscope() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const w = canvas.width;
       const h = canvas.height;
 
-      // Draw grid
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      // Draw subtle oscilloscope grid lines
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.06)';
       ctx.lineWidth = 1;
-      for (let y = 20; y < h; y += 30) {
+      for (let y = 20; y < h; y += 28) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(w, y);
         ctx.stroke();
       }
+      for (let x = 20; x < w; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
 
-      if (pingHistory.length < 2) return;
+      // If no history yet, draw an active resting baseline wave
+      if (pingHistory.length < 2) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+        ctx.lineWidth = 1.5;
+        const midY = h / 2;
+        ctx.moveTo(0, midY);
+        for (let x = 0; x < w; x += 10) {
+          ctx.lineTo(x, midY + Math.sin(x * 0.05) * 4);
+        }
+        ctx.stroke();
+        return;
+      }
 
       const step = w / Math.max(20, pingHistory.length - 1);
 
+      // Gradient area fill under Latency curve
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
+      grad.addColorStop(1, 'rgba(0, 229, 255, 0.0)');
+
+      ctx.beginPath();
+      pingHistory.forEach((p, idx) => {
+        const x = idx * step;
+        const normalized = Math.min(h - 10, Math.max(10, h - (p.latency_ms / 150) * (h - 20)));
+        if (idx === 0) ctx.moveTo(x, normalized);
+        else ctx.lineTo(x, normalized);
+      });
+      ctx.lineTo((pingHistory.length - 1) * step, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
       // Latency line (Cyan)
       ctx.beginPath();
-      ctx.strokeStyle = '#00B4D8';
+      ctx.strokeStyle = '#00e5ff';
       ctx.lineWidth = 2;
       pingHistory.forEach((p, idx) => {
         const x = idx * step;
-        const normalized = Math.min(h - 10, Math.max(10, h - (p.latency_ms / 200) * (h - 20)));
+        const normalized = Math.min(h - 10, Math.max(10, h - (p.latency_ms / 150) * (h - 20)));
         if (idx === 0) ctx.moveTo(x, normalized);
         else ctx.lineTo(x, normalized);
       });
@@ -291,11 +449,11 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 
       // Jitter line (Amber)
       ctx.beginPath();
-      ctx.strokeStyle = '#F59E0B';
+      ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 1.5;
       pingHistory.forEach((p, idx) => {
         const x = idx * step;
-        const normalized = Math.min(h - 10, Math.max(10, h - (p.jitter_ms / 100) * (h - 20)));
+        const normalized = Math.min(h - 10, Math.max(10, h - (p.jitter_ms / 60) * (h - 20)));
         if (idx === 0) ctx.moveTo(x, normalized);
         else ctx.lineTo(x, normalized);
       });
@@ -305,47 +463,49 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     function updateUI(state) {
       if (!state) return;
 
-      // Status
+      // Status Indicator
       const statusPill = document.getElementById('status-pill');
       const statusText = document.getElementById('status-text');
       statusText.innerText = state.status + (state.current_phase ? ' (' + state.current_phase + ')' : '');
 
       if (state.status === 'RUNNING') {
-        statusPill.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/30";
+        statusPill.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/30";
       } else if (state.status === 'COMPLETED') {
-        statusPill.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30";
+        statusPill.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/30";
+      } else {
+        statusPill.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-800 text-slate-300 border border-white/10";
       }
 
-      // Active metrics
+      // Active Telemetry Metrics
       const active = state.active_metrics || {};
       document.getElementById('active-band').innerText = (state.current_band || 'AUTO').toUpperCase();
-      document.getElementById('active-freq').innerText = state.current_band === '8' ? '900 MHz' : state.current_band === '3' ? '1800 MHz' : state.current_band === '1' ? '2100 MHz' : state.current_band === '40' ? '2300 MHz' : 'Multi-Band';
+      document.getElementById('active-freq').innerText = state.current_band === '8' ? '900 MHz FDD' : state.current_band === '3' ? '1800 MHz FDD' : state.current_band === '1' ? '2100 MHz FDD' : state.current_band === '40' ? '2300 MHz TDD' : 'Dynamic Roaming';
       document.getElementById('metric-latency').innerText = (active.latency_ms || 0.0).toFixed(1);
       document.getElementById('metric-jitter').innerText = 'Jitter: ' + (active.jitter_ms || 0.0).toFixed(1) + ' ms';
       document.getElementById('metric-loss').innerText = (active.loss_pct || 0.0).toFixed(1) + '%';
 
       if (active.loss_pct > 5.0) {
-        document.getElementById('metric-loss').className = "text-3xl font-extrabold text-rose-400 font-mono";
+        document.getElementById('metric-loss').className = "text-3xl font-extrabold text-rose-400 font-mono tabular-nums";
         document.getElementById('metric-weather-alert').innerText = "Rain Attenuation: ELEVATED FADE DETECTED";
-        document.getElementById('metric-weather-alert').className = "mt-3 text-[11px] text-rose-400 font-semibold";
+        document.getElementById('metric-weather-alert').className = "mt-1 text-[11px] text-rose-400 font-medium";
       } else {
-        document.getElementById('metric-loss').className = "text-3xl font-extrabold text-emerald-400 font-mono";
+        document.getElementById('metric-loss').className = "text-3xl font-extrabold text-emerald-400 font-mono tabular-nums";
         document.getElementById('metric-weather-alert').innerText = "Rain Attenuation: Normal";
-        document.getElementById('metric-weather-alert').className = "mt-3 text-[11px] text-slate-400";
+        document.getElementById('metric-weather-alert').className = "mt-1 text-[11px] text-slate-400";
       }
 
-      // Watchdog
+      // Watchdog Timer
       const watchdogSec = state.watchdog_remaining_sec || 0;
       const watchdogElem = document.getElementById('watchdog-val');
       if (watchdogSec > 0) {
         watchdogElem.innerText = watchdogSec + 's';
-        watchdogElem.className = "text-3xl font-extrabold text-amber-400 font-mono animate-pulse";
+        watchdogElem.className = "text-3xl font-extrabold text-amber-400 font-mono tabular-nums animate-pulse";
       } else {
         watchdogElem.innerText = "ARMED";
-        watchdogElem.className = "text-3xl font-extrabold text-indigo-400 font-mono";
+        watchdogElem.className = "text-3xl font-extrabold text-indigo-300 font-mono";
       }
 
-      // RF Gauges
+      // RF Signal Gauges
       document.getElementById('gauge-rsrp').innerText = active.rsrp ? active.rsrp + ' dBm' : '-85 dBm';
       document.getElementById('gauge-rsrq').innerText = active.rsrq ? active.rsrq + ' dB' : '-10 dB';
       document.getElementById('gauge-sinr').innerText = active.sinr ? active.sinr + ' dB' : '15 dB';
@@ -356,7 +516,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         drawOscilloscope();
       }
 
-      // Band matrix table
+      // Band Matrix Scorecard Table
       const tbody = document.getElementById('matrix-tbody');
       if (state.bands_evaluated && state.bands_evaluated.length > 0) {
         tbody.innerHTML = '';
@@ -365,22 +525,24 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
           const isWinner = state.recommendation && state.recommendation.winning_band === b.band;
           if (isWinner) tr.className = "bg-cyan-500/10 font-bold border-l-4 border-cyan-400";
 
-          const rainBadge = b.rain_score >= 80 ? 'bg-emerald-500/20 text-emerald-400' : b.rain_score >= 50 ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400';
+          const rainBadge = b.rain_score >= 80 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : b.rain_score >= 50 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
 
           tr.innerHTML = `
-            <td class="py-3 px-4 font-semibold text-white flex items-center space-x-2">
-              <span>${b.name}</span>
-              ${isWinner ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-cyan-400 text-slate-950">WINNER</span>' : ''}
+            <td class="py-2.5 px-3.5 font-semibold text-white">
+              <div class="flex items-center space-x-2">
+                <span>${b.name}</span>
+                ${isWinner ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-cyan-400 text-black font-bold">WINNER</span>' : ''}
+              </div>
             </td>
-            <td class="py-3 px-4 text-slate-400">${b.frequency}</td>
-            <td class="py-3 px-4 ${b.loss_pct > 0 ? 'text-rose-400' : 'text-emerald-400'}">${b.loss_pct.toFixed(1)}%</td>
-            <td class="py-3 px-4 text-slate-200">${b.latency_avg_ms.toFixed(1)} ms</td>
-            <td class="py-3 px-4 text-amber-300">${b.jitter_ms.toFixed(1)} ms</td>
-            <td class="py-3 px-4 text-cyan-300">${b.sinr} dB</td>
-            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] ${rainBadge}">${b.rain_score}/100</span></td>
-            <td class="py-3 px-4">
-              <button onclick="lockBand('${b.band}')" class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-cyan-300 text-[10px] border border-white/10 transition">
-                Lock
+            <td class="py-2.5 px-3.5 text-slate-400">${b.frequency}</td>
+            <td class="py-2.5 px-3.5 ${b.loss_pct > 0 ? 'text-rose-400' : 'text-emerald-400'}">${b.loss_pct.toFixed(1)}%</td>
+            <td class="py-2.5 px-3.5 text-slate-200 tabular-nums">${b.latency_avg_ms.toFixed(1)} ms</td>
+            <td class="py-2.5 px-3.5 text-amber-300 tabular-nums">${b.jitter_ms.toFixed(1)} ms</td>
+            <td class="py-2.5 px-3.5 text-cyan-300 tabular-nums">${b.sinr} dB</td>
+            <td class="py-2.5 px-3.5"><span class="px-2 py-0.5 rounded-md text-[10px] ${rainBadge}">${b.rain_score}/100</span></td>
+            <td class="py-2.5 px-3.5 text-right">
+              <button onclick="lockBand('${b.band}')" class="px-2.5 py-1 rounded-md bg-surface-muted hover:bg-surface-border text-cyan-300 text-[11px] border border-white/10 transition active:scale-95">
+                Lock Carrier
               </button>
             </td>
           `;
@@ -388,29 +550,35 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         });
       }
 
-      // AGY Decision Card
+      // AGY Decision Synthesis Card
       const agyCard = document.getElementById('agy-card');
       if (state.recommendation) {
         agyCard.classList.remove('hidden');
         document.getElementById('agy-summary').innerText = state.recommendation.reasoning_summary;
         const agyActions = document.getElementById('agy-actions');
         agyActions.innerHTML = `
-          <button onclick="lockBand('${state.recommendation.winning_band}')" class="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/20 transition">
-            Apply Winning Band (${state.recommendation.winning_band_name})
+          <button onclick="lockBand('${state.recommendation.winning_band}')" class="px-4 py-2 rounded-lg text-xs font-bold bg-cyan-400 hover:bg-cyan-300 text-black shadow-lg shadow-cyan-500/25 transition active:scale-95 flex items-center space-x-1.5">
+            <span>Apply Selected Carrier (${state.recommendation.winning_band_name})</span>
           </button>
         `;
       }
 
-      // Logs
+      // Logs Box
       if (state.logs) {
         const logBox = document.getElementById('log-box');
-        logBox.innerHTML = state.logs.map(l => `<div>${l}</div>`).join('');
+        logBox.innerHTML = state.logs.map(l => {
+          let color = 'text-slate-300';
+          if (l.includes('[ERROR]')) color = 'text-rose-400 font-semibold';
+          else if (l.includes('[WARN]')) color = 'text-amber-300';
+          else if (l.includes('🏆') || l.includes('✓')) color = 'text-cyan-300 font-semibold';
+          return `<div class="${color}">${l}</div>`;
+        }).join('');
         logBox.scrollTop = logBox.scrollHeight;
         document.getElementById('log-count').innerText = state.logs.length + ' events';
       }
     }
 
-    // SSE Stream
+    // Server-Sent Events (SSE) Stream
     function initSSE() {
       const source = new EventSource('/api/events');
       source.onmessage = (e) => {
@@ -422,7 +590,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         }
       };
       source.onerror = () => {
-        console.warn("SSE disconnected. Polling fallback active.");
+        console.warn("SSE disconnected. Falling back to HTTP polling.");
         setTimeout(pollFallback, 2000);
       };
     }
@@ -438,9 +606,14 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
     }
 
     function startCalibration() {
+      const btn = document.getElementById('btn-calibrate');
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
       fetch('/api/action/calibrate', { method: 'POST' })
         .then(r => r.json())
-        .then(d => console.log('Calibration initiated', d));
+        .then(d => console.log('Calibration initiated', d))
+        .finally(() => {
+          setTimeout(() => btn.classList.remove('opacity-70', 'cursor-not-allowed'), 2000);
+        });
     }
 
     function revertAuto() {
@@ -456,7 +629,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
         body: JSON.stringify({ band: band })
       })
       .then(r => r.json())
-      .then(d => alert('Band locked: ' + d.message));
+      .then(d => alert('Carrier Lock Applied: ' + d.message));
     }
 
     initSSE();

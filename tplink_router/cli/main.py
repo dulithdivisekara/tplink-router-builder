@@ -4,6 +4,7 @@ import argparse
 import getpass
 import json
 import sys
+import time
 from typing import Any, Optional
 import requests
 
@@ -680,16 +681,48 @@ def cmd_calibrate(args: argparse.Namespace):
     from tplink_router.calibration.engine import RouterCalibrator
     from tplink_router.calibration.dashboard import start_dashboard_server
 
-    cfg = ConfigManager().load(cli_host=args.host, cli_username=args.username, cli_password=args.password)
-    password = cfg.get("password") or args.password
-    host = cfg.get("host") or args.host or "http://192.168.1.1"
+    raw_cookie = getattr(args, "cookie", None)
+    if raw_cookie == "PROMPT":
+        print("Paste your browser session cookie or Netscape cookie block below:")
+        try:
+            raw_cookie = input("Cookie: ").strip()
+        except EOFError:
+            raw_cookie = None
+
+    cfg = ConfigManager().load(
+        cli_host=getattr(args, "host", None),
+        cli_username=getattr(args, "username", None),
+        cli_password=getattr(args, "password", None),
+        cli_cookie=raw_cookie,
+    )
+
+    host = cfg.get("host") or getattr(args, "host", None) or "http://192.168.1.1"
+    username = getattr(args, "username", None) or cfg.get("username", "admin")
+    password = cfg.get("password") or getattr(args, "password", None)
+    session_cookie = cfg.get("session_cookie")
+    expected_ssid = cfg.get("expected_ssid")
+    force = getattr(args, "force", False)
+
+    # Run Network Guard safety check
+    is_safe, msg = NetworkGuard.check_safety(target_host=host, expected_ssid=expected_ssid, force=force)
+    if not is_safe:
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "error": True,
+                "code": "NETWORK_GUARD_BLOCKED",
+                "message": msg
+            }, indent=2), file=sys.stderr)
+        else:
+            print(f"\033[91m[Network Guard Alert] {msg}\033[0m")
+        sys.exit(2)
 
     target_bands = [b.strip() for b in args.bands.split(",") if b.strip()]
 
     calibrator = RouterCalibrator(
         host=host,
         password=password,
-        username=args.username or cfg.get("username", "admin"),
+        session_cookie=session_cookie,
+        username=username,
         bands=target_bands,
         watchdog_timeout=args.timeout,
         dry_run=args.dry_run,
