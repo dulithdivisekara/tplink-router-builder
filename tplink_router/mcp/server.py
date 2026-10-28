@@ -206,6 +206,192 @@ def router_send_sms(to_phone: str, message: str, force: bool = False) -> str:
 
 
 @server.tool()
+def router_get_connected_clients(force: bool = False) -> List[Dict[str, Any]]:
+    """Retrieves all connected wired and wireless devices currently on the router LAN.
+
+    Returns hostnames, IP addresses, MAC addresses, and lease durations.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_connected_clients"):
+            return [{"error": "Client listing is only supported on MR cellular models."}]
+        return client.get_connected_clients()
+
+
+@server.tool()
+def router_manage_dhcp_reservation(action: str, mac: str, ip: Optional[str] = None,
+                                  confirm: bool = False, force: bool = False) -> str:
+    """Manages static DHCP IP address reservations on the router.
+
+    Args:
+        action: 'add', 'delete', or 'list'.
+        mac: Hardware MAC address (e.g. 'AA:BB:CC:DD:EE:FF').
+        ip: Desired reserved IP address (required for 'add').
+        confirm: Confirmation required for 'add' or 'delete'.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_dhcp_reservations"):
+            return "DHCP reservation is only supported on MR cellular models."
+
+        if action == "list":
+            res = client.get_dhcp_reservations()
+            return str(res)
+
+        if not confirm:
+            return f"SAFETY WARNING: Modifying DHCP reservations alters LAN routing. Call again with confirm=True to {action} reservation for MAC {mac}."
+
+        if action == "add":
+            if not ip:
+                return "Error: IP address is required when adding a reservation."
+            client.add_dhcp_reservation(mac, ip)
+            return f"DHCP static reservation added for MAC {mac} -> IP {ip}."
+        elif action == "delete":
+            client.delete_dhcp_reservation(mac)
+            return f"DHCP reservation deleted for MAC {mac}."
+        return f"Unknown action: {action}"
+
+
+@server.tool()
+def router_get_data_limit(force: bool = False) -> Dict[str, Any]:
+    """Retrieves monthly cellular data allowance, billing cycle start day, and live bandwidth."""
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_data_limit"):
+            return {"error": "Data limits are only supported on cellular MR series models."}
+        return client.get_data_limit()
+
+
+@server.tool()
+def router_set_data_limit(limit_mb: int, payment_day: int = 1, warning_percent: int = 90,
+                          enable: bool = True, confirm: bool = False, force: bool = False) -> str:
+    """Configures monthly cellular data quota, billing day reset, and usage alert threshold.
+
+    Args:
+        limit_mb: Total monthly data allowance in Megabytes (e.g. 50000 for 50GB).
+        payment_day: Day of month when billing cycle resets (1-31).
+        warning_percent: Threshold percent to trigger alert (e.g. 90).
+        enable: True to enforce quota, False to disable.
+        confirm: Confirmation required to apply data quota limits.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return f"Confirm setting monthly cellular quota to {limit_mb} MB (billing day {payment_day}) by passing confirm=True."
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_data_limit"):
+            return "Data limit configuration is only supported on cellular MR series models."
+        client.set_data_limit(enabled=enable, limit_mb=limit_mb, warning_percent=warning_percent, payment_day=payment_day)
+    return f"Monthly data limit updated: {limit_mb} MB, reset on day {payment_day} of month."
+
+
+@server.tool()
+def router_get_wifi_networks(force: bool = False) -> List[Dict[str, Any]]:
+    """Retrieves status, SSIDs, channels, and operational state of 2.4 GHz and 5 GHz Wi-Fi radios."""
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_wifi_status"):
+            return [{"error": "Wi-Fi status listing is only supported on MR cellular models."}]
+        return client.get_wifi_status()
+
+
+@server.tool()
+def router_set_wifi_radio(band: str, enable: bool, ssid: Optional[str] = None,
+                          confirm: bool = False, force: bool = False) -> str:
+    """Enables or disables a Wi-Fi radio (2.4GHz or 5GHz) and optionally updates its SSID.
+
+    IMPORTANT: Disabling the Wi-Fi band you are currently connected to will disconnect your host!
+    You MUST provide confirm=True to execute.
+
+    Args:
+        band: '2.4GHz' or '5GHz'.
+        enable: True to enable radio, False to disable.
+        ssid: Optional new SSID name.
+        confirm: Safety confirmation. Set to True to apply radio changes.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return (
+            f"SAFETY WARNING: Changing Wi-Fi radio '{band}' state (enable={enable}) will disconnect "
+            f"any devices currently connected to that frequency band. Provide confirm=True to proceed."
+        )
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_wifi_radio"):
+            return "Wi-Fi radio configuration is only supported on MR cellular models."
+        client.set_wifi_radio(band=band, enabled=enable, ssid=ssid)
+    return f"Wi-Fi {band} radio updated (enable={enable}, ssid={ssid or 'unchanged'})."
+
+
+@server.tool()
+def router_get_led_status(force: bool = False) -> Dict[str, Any]:
+    """Retrieves the physical LED status and night mode schedule."""
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_led_status"):
+            return {"error": "LED control is only supported on MR cellular models."}
+        return client.get_led_status()
+
+
+@server.tool()
+def router_set_led_night_mode(enable: bool, start_time: str = "22:00", end_time: str = "07:00",
+                              force: bool = False) -> str:
+    """Configures night mode to turn off router front panel LEDs automatically during sleeping hours.
+
+    Args:
+        enable: True to activate night mode schedule, False to disable.
+        start_time: 'HH:MM' time when LEDs turn OFF (e.g. '22:00').
+        end_time: 'HH:MM' time when LEDs turn back ON (e.g. '07:00').
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_led_night_mode"):
+            return "LED schedule is only supported on MR cellular models."
+        client.set_led_night_mode(enabled=enable, start_time=start_time, end_time=end_time)
+    return f"Night mode {'enabled' if enable else 'disabled'} (LEDs OFF from {start_time} to {end_time})."
+
+
+@server.tool()
+def router_run_diagnostic(force: bool = False) -> Dict[str, Any]:
+    """Runs a router-side diagnostic self-test verifying physical link, WAN IP, and Internet NCSI reachability."""
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "run_wan_diagnostic"):
+            return {"error": "Router diagnostic is only supported on MR cellular models."}
+        return client.run_wan_diagnostic()
+
+
+@server.tool()
+def router_set_lte_band(band: str, confirm: bool = False, force: bool = False) -> str:
+    """Manually locks router to a specific LTE band (e.g. '3' for 1800MHz, '8' for 900MHz, '40' for 2300MHz, or 'auto').
+
+    Essential for locking to optimal Hutch/Dialog 4G towers in Sri Lanka (e.g. Malabe).
+    IMPORTANT: Changing bands triggers cellular radio renegotiation.
+
+    Args:
+        band: LTE Band number (e.g. '3', '8', '40') or 'auto'.
+        confirm: Safety confirmation. Set to True to execute band change.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return (
+            f"SAFETY WARNING: Switching LTE band to '{band}' will momentarily drop and reconnect the 4G link "
+            f"for 10-15 seconds. Call again with confirm=True to execute."
+        )
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_lte_band"):
+            return "Band lock is only supported on MR cellular models."
+        client.set_lte_band(band=band)
+    return f"LTE band lock set to {band.upper()}. Cellular radio is reconnecting to selected frequency."
+
+
+@server.tool()
 def router_reboot(confirm: bool = False, force: bool = False) -> str:
     """Initiates a graceful reboot of the TP-Link router.
 

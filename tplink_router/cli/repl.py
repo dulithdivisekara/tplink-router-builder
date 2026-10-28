@@ -44,6 +44,11 @@ Available commands in REPL:
   cell-lock unlock     Disable cell lock
   dns set <p> [s]      Set WAN DNS
   ipv6 on|off          Toggle IPv6
+  clients              List connected LAN clients
+  data-limit           Show cellular quota & usage
+  wifi                 Show Wi-Fi radios & status
+  leds                 Show LED night mode status
+  diag                 Run router WAN & internet test
   sms list             List incoming SMS
   sms send <num> <msg> Send an SMS
   ussd <code>          Execute USSD code (e.g. *344#)
@@ -96,6 +101,48 @@ Available commands in REPL:
                     st = parts[1].lower() in ("on", "true", "enable")
                     client.toggle_ipv6(st)
                     print(f"\033[92mIPv6 {'enabled' if st else 'disabled'}\033[0m")
+
+                elif cmd == "clients":
+                    if hasattr(client, "get_connected_clients"):
+                        clients = client.get_connected_clients()
+                        print(f"{'HOSTNAME':<20} {'IP ADDRESS':<16} {'MAC':<18} {'LEASE':<10}")
+                        print("-" * 65)
+                        for c in clients:
+                            print(f"{c['hostname']:<20} {c['ip']:<16} {c['mac']:<18} {c['lease_remaining']:<10}")
+                        print(f"Total: {len(clients)} clients")
+                    else:
+                        print("Connected clients only supported on MR cellular models.")
+
+                elif cmd == "data-limit":
+                    if hasattr(client, "get_data_limit"):
+                        data = client.get_data_limit()
+                        print(f"Quota Active: {data['limit_enabled']} | Limit: {data['limit_mb']} MB | Reset Day: {data['billing_day']}")
+                        print(f"Used: {round(data['current_period_bytes']/(1024*1024), 2)} MB | Total: {round(data['total_bytes']/(1024*1024), 2)} MB")
+                    else:
+                        print("Data limit only supported on MR cellular models.")
+
+                elif cmd == "wifi":
+                    if hasattr(client, "get_wifi_status"):
+                        nets = client.get_wifi_status()
+                        for n in nets:
+                            print(f"{n['band']}: {n['ssid']} (State: {'Enabled' if n['enabled'] else 'Disabled'}, Channel: {n['channel']})")
+                    else:
+                        print("Wi-Fi control only supported on MR cellular models.")
+
+                elif cmd == "leds":
+                    if hasattr(client, "get_led_status"):
+                        leds = client.get_led_status()
+                        print(f"LEDs: {'ON' if leds['leds_on'] else 'OFF'} | Night Mode: {'Enabled' if leds['night_mode_enabled'] else 'Disabled'} ({leds['night_mode_start']} - {leds['night_mode_end']})")
+                    else:
+                        print("LED control only supported on MR cellular models.")
+
+                elif cmd == "diag":
+                    if hasattr(client, "run_wan_diagnostic"):
+                        print("Running diagnostic...")
+                        res = client.run_wan_diagnostic()
+                        print(f"Diagnostic Result: {res['status']} ({res['message']})")
+                    else:
+                        print("Diagnostics only supported on MR cellular models.")
 
                 elif cmd == "sms":
                     if not hasattr(client, "get_sms"):

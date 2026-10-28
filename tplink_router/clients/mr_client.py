@@ -82,10 +82,19 @@ class TPLinkMRClient:
         data = "".join(act_data)
         url = f"{self.host}/cgi?" + "&".join(act_types)
 
-        resp = self.session.post(url, data=data, timeout=self.timeout)
+        headers = {
+            "Referer": f"{self.host}/",
+            "Content-Type": "text/plain",
+        }
+        if hasattr(self.auth, "token") and self.auth.token:
+            headers["TokenID"] = self.auth.token
+
+        resp = self.session.post(url, data=data, headers=headers, timeout=self.timeout)
         if resp.status_code == 403 or "login.htm" in resp.text:
             self.login()
-            resp = self.session.post(url, data=data, timeout=self.timeout)
+            if hasattr(self.auth, "token") and self.auth.token:
+                headers["TokenID"] = self.auth.token
+            resp = self.session.post(url, data=data, headers=headers, timeout=self.timeout)
 
         if resp.status_code != 200:
             raise ConnectionError(f"Router returned HTTP {resp.status_code}")
@@ -333,5 +342,217 @@ class TPLinkMRClient:
 
     def reboot(self) -> bool:
         acts = [ActItem(ActItem.OP, "ACT_REBOOT")]
+        self.req_act(acts)
+        return True
+
+    def get_connected_clients(self) -> List[Dict[str, Any]]:
+        """Queries all active wired and wireless clients on the LAN."""
+        acts = [
+            ActItem(ActItem.GL, "LAN_HOST_ENTRY", attrs=["hostName", "IPAddress", "MACAddress", "leaseTimeRemaining", "addressSource"]),
+        ]
+        res = self.req_act(acts)
+        entries = res.get("0", [])
+        if isinstance(entries, dict):
+            entries = [entries]
+
+        clients = []
+        for e in entries:
+            lease_sec = int(e.get("leaseTimeRemaining", 0))
+            if lease_sec == -1:
+                lease_str = "Permanent"
+            else:
+                h = lease_sec // 3600
+                m = (lease_sec % 3600) // 60
+                s = lease_sec % 60
+                lease_str = f"{h:02d}:{m:02d}:{s:02d}"
+
+            clients.append({
+                "hostname": e.get("hostName") or "Unknown",
+                "ip": e.get("IPAddress", ""),
+                "mac": (e.get("MACAddress") or "").replace(":", "-").upper(),
+                "lease_remaining": lease_str,
+                "source": e.get("addressSource", "DHCP"),
+            })
+        return clients
+
+    def get_dhcp_reservations(self) -> List[Dict[str, Any]]:
+        """Returns static IP address reservations."""
+        acts = [
+            ActItem(ActItem.GL, "LAN_DHCP_STATIC_ADDR", attrs=["enable", "chaddr", "yiaddr"]),
+        ]
+        res = self.req_act(acts)
+        entries = res.get("0", [])
+        if isinstance(entries, dict):
+            entries = [entries]
+
+        reservations = []
+        for e in entries:
+            reservations.append({
+                "stack": e.get("__stack", "0,0,0,0,0,0"),
+                "mac": (e.get("chaddr") or "").upper(),
+                "ip": e.get("yiaddr", ""),
+                "enabled": e.get("enable") == "1",
+            })
+        return reservations
+
+    def add_dhcp_reservation(self, mac: str, ip: str, enable: bool = True) -> bool:
+        """Adds a static DHCP reservation."""
+        clean_mac = mac.replace("-", ":").lower()
+        acts = [
+            ActItem(ActItem.ADD, "LAN_DHCP_STATIC_ADDR", attrs=[
+                f"enable={'1' if enable else '0'}",
+                f"chaddr={clean_mac}",
+                f"yiaddr={ip}",
+            ])
+        ]
+        self.req_act(acts)
+        return True
+
+    def delete_dhcp_reservation(self, mac: str) -> bool:
+        """Deletes a static DHCP reservation matching the given MAC."""
+        reservations = self.get_dhcp_reservations()
+        clean_target = mac.replace(":", "-").upper()
+        target_stack = None
+        for r in reservations:
+            if r["mac"].replace(":", "-").upper() == clean_target:
+                target_stack = r["stack"]
+                break
+        if not target_stack:
+            raise ValueError(f"No reservation found for MAC {mac}")
+
+        acts = [ActItem(ActItem.DEL, "LAN_DHCP_STATIC_ADDR", stack=target_stack)]
+        self.req_act(acts)
+        return True
+
+    def get_data_limit(self) -> Dict[str, Any]:
+        """Returns cellular data quota, monthly cycle, and bandwidth counters."""
+        acts = [
+            ActItem(ActItem.GET, "WAN_LTE_INTF_CFG", stack="2,0,0,0,0,0", attrs=[
+                "enableDataLimit", "limitation", "warningPercent", "enablePaymentDay",
+                "paymentDay", "curStatistics", "totalStatistics", "curRxSpeed", "curTxSpeed"
+            ])
+        ]
+        res = self.req_act(acts)
+        data = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
+        return {
+            "limit_enabled": data.get("enableDataLimit") == "1",
+            "limit_mb": int(data.get("limitation", 0)),
+            "warning_percent": int(data.get("warningPercent", 90)),
+            "billing_day_enabled": data.get("enablePaymentDay") == "1",
+            "billing_day": int(data.get("paymentDay", 1)),
+            "current_period_bytes": int(float(data.get("curStatistics", 0))),
+            "total_bytes": int(float(data.get("totalStatistics", 0))),
+            "rx_speed_kbps": round(int(data.get("curRxSpeed", 0)) * 8 / 1024, 2),
+            "tx_speed_kbps": round(int(data.get("curTxSpeed", 0)) * 8 / 1024, 2),
+        }
+
+    def set_data_limit(self, enabled: bool, limit_mb: int, warning_percent: int = 90, payment_day: int = 1) -> bool:
+        """Sets monthly cellular data cap and billing cycle reset date."""
+        attrs = [
+            f"enableDataLimit={'1' if enabled else '0'}",
+            f"limitation={limit_mb}",
+            f"warningPercent={warning_percent}",
+            "enablePaymentDay=1",
+            f"paymentDay={payment_day}",
+        ]
+        acts = [ActItem(ActItem.SET, "WAN_LTE_INTF_CFG", stack="2,0,0,0,0,0", attrs=attrs)]
+        self.req_act(acts)
+        return True
+
+    def get_wifi_status(self) -> List[Dict[str, Any]]:
+        """Queries Wi-Fi radios (2.4 GHz and 5 GHz)."""
+        acts = [
+            ActItem(ActItem.GL, "LAN_WLAN", attrs=["Name", "Standard", "SSID", "X_TP_Band", "Channel", "Enable", "SSIDAdvertisementEnabled"]),
+        ]
+        res = self.req_act(acts)
+        entries = res.get("0", [])
+        if isinstance(entries, dict):
+            entries = [entries]
+
+        networks = []
+        for e in entries:
+            networks.append({
+                "name": e.get("Name", ""),
+                "band": e.get("X_TP_Band", ""),
+                "ssid": e.get("SSID", ""),
+                "channel": e.get("Channel", "Auto"),
+                "standard": e.get("Standard", ""),
+                "enabled": e.get("Enable") == "1",
+                "broadcast_ssid": e.get("SSIDAdvertisementEnabled") == "1",
+            })
+        return networks
+
+    def set_wifi_radio(self, band: str, enabled: bool, ssid: Optional[str] = None) -> bool:
+        """Toggles Wi-Fi radio (2.4GHz or 5GHz) and optionally renames SSID."""
+        target_stack = "1,1,0,0,0,0" if "2" in band else "1,2,0,0,0,0"
+        attrs = [f"Enable={'1' if enabled else '0'}"]
+        if ssid:
+            attrs.append(f"SSID={ssid}")
+        acts = [ActItem(ActItem.SET, "LAN_WLAN", stack=target_stack, attrs=attrs)]
+        self.req_act(acts)
+        return True
+
+    def get_led_status(self) -> Dict[str, Any]:
+        """Queries physical LEDs and night mode schedule."""
+        acts = [
+            ActItem(ActItem.GET, "LED_BUTTON"),
+            ActItem(ActItem.GET, "LED_SCHEDULE_CFG"),
+        ]
+        res = self.req_act(acts)
+        btn = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
+        sched = res.get("1", {}) if isinstance(res.get("1"), dict) else {}
+
+        start_min = int(sched.get("startTime", 0))
+        end_min = int(sched.get("endTime", 0))
+
+        return {
+            "leds_on": btn.get("enable") == "1",
+            "night_mode_enabled": sched.get("enable") == "1",
+            "night_mode_start": f"{start_min // 60:02d}:{start_min % 60:02d}",
+            "night_mode_end": f"{end_min // 60:02d}:{end_min % 60:02d}",
+        }
+
+    def set_led_night_mode(self, enabled: bool, start_time: str = "22:00", end_time: str = "07:00") -> bool:
+        """Configures night mode schedule to turn off front panel router LEDs."""
+        sh, sm = map(int, start_time.split(":"))
+        eh, em = map(int, end_time.split(":"))
+        start_min = sh * 60 + sm
+        end_min = eh * 60 + em
+
+        attrs = [
+            f"enable={'1' if enabled else '0'}",
+            f"startTime={start_min}",
+            f"endTime={end_min}",
+        ]
+        acts = [ActItem(ActItem.SET, "LED_SCHEDULE_CFG", attrs=attrs)]
+        self.req_act(acts)
+        return True
+
+    def run_wan_diagnostic(self, max_wait_sec: int = 12) -> Dict[str, Any]:
+        """Runs the router-side WAN and NCSI internet reachability diagnostic self-test."""
+        acts = [ActItem(ActItem.OP, "ACT_OP_DIAG_STARTDIAG")]
+        self.req_act(acts)
+
+        deadline = time.time() + max_wait_sec
+        while time.time() < deadline:
+            time.sleep(1.5)
+            res = self.req_act([ActItem(ActItem.GET, "DIAG_TOOL", attrs=["LastResult"])])
+            data = res.get("0", {}) if isinstance(res.get("0"), dict) else {}
+            last_res = data.get("LastResult")
+            if last_res == "1":
+                return {"status": "Passed", "result_code": 1, "message": "Physical link, WAN IP, and Internet NCSI reachable."}
+            elif last_res in ("2", "4"):
+                return {"status": "Failed", "result_code": int(last_res), "message": "WAN or DNS resolution failed."}
+
+        return {"status": "Running", "result_code": 3, "message": "Diagnostic still in progress."}
+
+    def set_lte_band(self, band: str) -> bool:
+        """Manually locks router to specific LTE band (e.g. '3', '8', '40', or 'auto')."""
+        if band.lower() == "auto":
+            attrs = ["enable=0", "selectedBand=0"]
+        else:
+            clean_band = band.upper().replace("BAND", "").strip()
+            attrs = ["enable=1", f"selectedBand={clean_band}"]
+        acts = [ActItem(ActItem.SET, "LTE_BAND_SEL", attrs=attrs)]
         self.req_act(acts)
         return True

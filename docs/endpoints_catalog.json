@@ -1,0 +1,361 @@
+{
+  "metadata": {
+    "project": "universal-tplink-mcp",
+    "router_model": "TP-Link Archer MR200 / MR6400 / MR600 Series",
+    "firmware_engine": "uhttpd TR-064 / CGI GDPR Encrypted & Legacy",
+    "target_ip": "192.168.1.1",
+    "extracted_by": "Dulith Divisekara (SLIIT Malabe)",
+    "total_web_pages": 95,
+    "security_protocols": [
+      "GDPR RSA-512 + AES-128-CBC + MD5",
+      "Legacy Plain CGI / Basic Auth",
+      "Single-Admin Session Token Lock (TokenID / JSESSIONID)"
+    ]
+  },
+  "action_types": {
+    "ACT_GET": 1,
+    "ACT_SET": 2,
+    "ACT_ADD": 3,
+    "ACT_DEL": 4,
+    "ACT_GL": 5,
+    "ACT_GS": 6,
+    "ACT_OP": 7,
+    "ACT_CGI": 8
+  },
+  "subsystems": {
+    "Cellular_and_Modem": {
+      "pages": [
+        "basicLte.htm",
+        "advanceLte.htm",
+        "ltecelllock.htm",
+        "dataSettings.htm",
+        "PINManagement.htm",
+        "lteIspUpdate.htm",
+        "basic3g.htm",
+        "usb3g.htm"
+      ],
+      "tr064_objects": {
+        "LTE_CELL_LOCK": {
+          "description": "Cellular Tower Lock (EARFCN, PCI, CID)",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "rfInfoCellIDLock", "earfcn", "pci", "cid", "freq", "rfInfoEARFCN", "rfInfoPCI"]
+        },
+        "LTE_BANDINFO": {
+          "description": "Live LTE Radio Frequency telemetry",
+          "actions": ["ACT_GET"],
+          "attributes": ["band", "earfcn", "pci", "rsrp", "rsrq", "snr", "rssi"]
+        },
+        "LTE_NET_STATUS": {
+          "description": "Cellular network registration and signal indicators",
+          "actions": ["ACT_GET"],
+          "attributes": ["sigLevel", "networkType", "simStatus", "rfInfoRsrp", "rfInfoRsrq", "rfInfoSnr", "smsUnreadCount", "roaming"]
+        },
+        "LTE_BAND_SEL": {
+          "description": "Manual or automatic LTE band locking",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "bandList", "selectedBand"]
+        },
+        "LTE_NET_SEL": {
+          "description": "Mobile network operator / PLMN search & selection",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["netSelectMode", "plmn", "operatorName", "networkStatus"]
+        },
+        "WAN_LTE_LINK_CFG": {
+          "description": "LTE link layer interface and SIM health",
+          "actions": ["ACT_GET", "ACT_GL"],
+          "attributes": ["enable", "connectStatus", "networkType", "simStatus", "signalStrength", "networkName"]
+        },
+        "WAN_LTE_INTF_CFG": {
+          "description": "Cellular monthly data quota and live speed counter",
+          "actions": ["ACT_GET", "ACT_SET", "ACT_GL"],
+          "attributes": [
+            "enableDataLimit",
+            "limitation",
+            "warningPercent",
+            "enablePaymentDay",
+            "paymentDay",
+            "curStatistics",
+            "totalStatistics",
+            "curRxSpeed",
+            "curTxSpeed",
+            "warnSimNumber"
+          ]
+        },
+        "LTE_WAN_CFG": {
+          "description": "APN profiles, data roaming toggle, and mobile switch",
+          "actions": ["ACT_GET", "ACT_SET", "ACT_GL"],
+          "attributes": ["profileName", "dataSwitchStatus", "networkPreferredMode", "roamingEnabled", "profileAction"]
+        },
+        "MOBILEDOG_CFG": {
+          "description": "Cellular watchdog auto-recovery service",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "pingHost", "interval", "maxFailCount"]
+        }
+      }
+    },
+    "SMS_and_USSD_Messaging": {
+      "pages": [
+        "lteSmsInbox.htm",
+        "lteSmsOutbox.htm",
+        "lteSmsDraftbox.htm",
+        "lteSmsNewMsg.htm",
+        "lteSmsSettings.htm",
+        "lteUssd.htm"
+      ],
+      "tr064_objects": {
+        "LTE_SMS_RECVMSGBOX": {
+          "description": "Inbox pagination control",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["PageNumber", "TotalCount", "UnreadCount"]
+        },
+        "LTE_SMS_RECVMSGENTRY": {
+          "description": "Inbox SMS records",
+          "actions": ["ACT_GL", "ACT_DEL"],
+          "attributes": ["index", "from", "content", "receivedTime", "unread"]
+        },
+        "LTE_SMS_SENDMSGBOX": {
+          "description": "Sent messages pagination",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["PageNumber", "TotalCount"]
+        },
+        "LTE_SMS_SENDMSGENTRY": {
+          "description": "Sent SMS records",
+          "actions": ["ACT_GL", "ACT_DEL"],
+          "attributes": ["index", "to", "content", "receivedTime"]
+        },
+        "LTE_SMS_SENDNEWMSG": {
+          "description": "Outbound SMS composition and status",
+          "actions": ["ACT_SET", "ACT_GET"],
+          "attributes": ["index", "to", "textContent", "sendResult"]
+        },
+        "LTE_USSD": {
+          "description": "Interactive USSD request execution and reply parsing",
+          "actions": ["ACT_SET", "ACT_GET"],
+          "attributes": ["action", "reqContent", "sessionStatus", "sendResult", "response", "ussdStatus"]
+        }
+      }
+    },
+    "LAN_and_Client_Management": {
+      "pages": [
+        "dhcp.htm",
+        "networkMap.htm",
+        "arpBind.htm"
+      ],
+      "tr064_objects": {
+        "LAN_HOST_ENTRY": {
+          "description": "Active DHCP client leases (wired & wireless devices)",
+          "actions": ["ACT_GL"],
+          "attributes": ["hostName", "IPAddress", "MACAddress", "leaseTimeRemaining", "addressSource"]
+        },
+        "LAN_DHCP_STATIC_ADDR": {
+          "description": "Static DHCP IP Address Reservations",
+          "actions": ["ACT_GL", "ACT_SET", "ACT_ADD", "ACT_DEL"],
+          "attributes": ["enable", "chaddr", "yiaddr", "description"]
+        },
+        "LAN_HOST_CFG": {
+          "description": "LAN DHCP Server configuration",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["DHCPServerEnable", "minAddress", "maxAddress", "DHCPLeaseTime", "DNSServers"]
+        },
+        "LAN_IP_INTF": {
+          "description": "LAN IP interface and subnet mask",
+          "actions": ["ACT_GET", "ACT_GS", "ACT_SET"],
+          "attributes": ["IPInterfaceIPAddress", "IPInterfaceSubnetMask", "__ifName"]
+        },
+        "ARP_BIND": {
+          "description": "IP & MAC binding table to prevent ARP poisoning",
+          "actions": ["ACT_GL", "ACT_SET", "ACT_DEL"],
+          "attributes": ["enable", "ip", "mac", "bindStatus"]
+        }
+      }
+    },
+    "Wireless_and_Guest_Network": {
+      "pages": [
+        "wirelessBasic.htm",
+        "wirelessSettings.htm",
+        "wirelessAdv.htm",
+        "wirelessSchedule.htm",
+        "wirelessStat.htm",
+        "wlGuestDulBandBasic.htm",
+        "wlGuestDulBandAdv.htm",
+        "wps.htm",
+        "oneMesh.htm"
+      ],
+      "tr064_objects": {
+        "LAN_WLAN": {
+          "description": "Wi-Fi radio interfaces (2.4 GHz & 5 GHz)",
+          "actions": ["ACT_GL", "ACT_GS", "ACT_SET", "ACT_GET"],
+          "attributes": [
+            "Name",
+            "Enable",
+            "SSID",
+            "X_TP_Band",
+            "Channel",
+            "AutoChannelEnable",
+            "X_TP_Bandwidth",
+            "SSIDAdvertisementEnabled",
+            "BeaconType",
+            "BasicEncryptionModes",
+            "WPAEncryptionModes",
+            "IEEE11iEncryptionModes",
+            "X_TP_PreSharedKey",
+            "TransmitPower"
+          ]
+        },
+        "LAN_WLAN_ASSOC_DEV": {
+          "description": "Associated wireless stations and packet counts",
+          "actions": ["ACT_GL", "ACT_GS"],
+          "attributes": ["AssociatedDeviceMACAddress", "X_TP_TotalPacketsSent", "X_TP_TotalPacketsReceived"]
+        },
+        "LAN_WLAN_MSSIDENTRY": {
+          "description": "Guest Network and Multi-SSID profile",
+          "actions": ["ACT_GS", "ACT_SET"],
+          "attributes": ["Name", "Enable", "SSID", "SSIDAdvertisementEnable", "isolateClients", "PreSharedKey"]
+        },
+        "LAN_WLAN_SCHEDULE": {
+          "description": "Wi-Fi automatic shutdown schedule",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "day", "startTime", "endTime"]
+        },
+        "ONEMESH": {
+          "description": "OneMesh Smart Connect unified SSID management",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enableSmartConnect"]
+        }
+      }
+    },
+    "WAN_and_IP_Routing": {
+      "pages": [
+        "status.htm",
+        "wanBasic.htm",
+        "wan.htm",
+        "ethWan.htm",
+        "route.htm",
+        "ddns.htm",
+        "sysMode.htm"
+      ],
+      "tr064_objects": {
+        "WAN_IP_CONN": {
+          "description": "IPv4 WAN connection status, DNS servers, and gateway",
+          "actions": ["ACT_GET", "ACT_GL", "ACT_SET"],
+          "attributes": ["connectionStatus", "externalIPAddress", "subnetMask", "defaultGateway", "DNSServers", "DNSOverrideAllowed"]
+        },
+        "WAN_IPv6_CONN": {
+          "description": "IPv6 WAN connection and SLAAC configuration",
+          "actions": ["ACT_GET", "ACT_GL", "ACT_SET"],
+          "attributes": ["enable", "connectionStatus", "IPv6Address", "DNSServers", "IPv6Prefix"]
+        },
+        "SYS_MODE": {
+          "description": "Operational mode (4G LTE Router, Wireless Router, Access Point)",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["Mode"]
+        },
+        "DYN_DNS_CFG": {
+          "description": "Dynamic DNS providers (TP-Link, DynDNS, No-IP)",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["Enable", "ServerName", "UserName", "Password"]
+        }
+      }
+    },
+    "Security_and_Firewall": {
+      "pages": [
+        "virtualServer.htm",
+        "portTrigger.htm",
+        "dmz.htm",
+        "upnp.htm",
+        "natBoost.htm",
+        "alg.htm",
+        "accessControl.htm",
+        "ddos.htm",
+        "ipv6Firewall.htm",
+        "parentCtrl.htm"
+      ],
+      "tr064_objects": {
+        "UPNP_PORTMAPPING": {
+          "description": "UPnP dynamic port forwards",
+          "actions": ["ACT_GL", "ACT_DEL"],
+          "attributes": ["PortMappingEnabled", "ExternalPort", "InternalPort", "InternalClient", "PortMappingProtocol"]
+        },
+        "VIRTUAL_SERVER": {
+          "description": "Manual virtual server / port forwarding rules",
+          "actions": ["ACT_GL", "ACT_SET", "ACT_ADD", "ACT_DEL"],
+          "attributes": ["enable", "serviceName", "externalPort", "internalPort", "internalClient", "protocol"]
+        },
+        "DMZ_CFG": {
+          "description": "Exposed DMZ Host IP",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "ipAddress"]
+        },
+        "NAT_BOOST": {
+          "description": "Shortcut FE (SFE) Hardware NAT acceleration",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable"]
+        },
+        "STAT_DDOS": {
+          "description": "Anti-DDoS flooding protection",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "synThreshold", "udpThreshold", "icmpThreshold"]
+        }
+      }
+    },
+    "Diagnostics_and_Administration": {
+      "pages": [
+        "diagnostic.htm",
+        "ledSchedule.htm",
+        "restart.htm",
+        "time.htm",
+        "log.htm",
+        "softup.htm",
+        "backNRestore.htm",
+        "manageCtrl.htm"
+      ],
+      "tr064_objects": {
+        "DIAG_TOOL": {
+          "description": "System diagnostic and internet self-test state",
+          "actions": ["ACT_GET", "ACT_OP"],
+          "attributes": ["LastResult"]
+        },
+        "ACT_OP_DIAG_STARTDIAG": {
+          "description": "Triggers end-to-end WAN and NCSI reachability test",
+          "actions": ["ACT_OP"],
+          "attributes": []
+        },
+        "IPPING_DIAG": {
+          "description": "Router ICMP ping tool",
+          "actions": ["ACT_GET", "ACT_SET", "ACT_OP"],
+          "attributes": ["diagnosticsState", "host", "numberOfRepetitions", "timeout", "successCount", "failureCount", "averageResponseTime"]
+        },
+        "TRACEROUTE_DIAG": {
+          "description": "Router traceroute tool",
+          "actions": ["ACT_GET", "ACT_SET", "ACT_OP"],
+          "attributes": ["diagnosticsState", "host", "maxHopCount", "timeout", "responseTime"]
+        },
+        "LED_BUTTON": {
+          "description": "Front panel physical LED button state",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable"]
+        },
+        "LED_SCHEDULE_CFG": {
+          "description": "Night mode schedule for front panel LEDs",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "startTime", "endTime"]
+        },
+        "ACT_OP_REBOOT": {
+          "description": "Graceful system hardware reboot",
+          "actions": ["ACT_OP"],
+          "attributes": []
+        },
+        "REBOOT_SCHEDULE_CFG": {
+          "description": "Automatic recurring reboot schedule",
+          "actions": ["ACT_GET", "ACT_SET"],
+          "attributes": ["enable", "mode", "time", "day"]
+        },
+        "IGD_DEV_INFO": {
+          "description": "Hardware and software version metadata",
+          "actions": ["ACT_GET"],
+          "attributes": ["modelName", "description", "softwareVersion", "hardwareVersion"]
+        }
+      }
+    }
+  }
+}

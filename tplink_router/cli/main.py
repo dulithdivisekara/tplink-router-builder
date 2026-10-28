@@ -242,6 +242,171 @@ def cmd_repl(args: argparse.Namespace):
     run_repl(client)
 
 
+def cmd_clients(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_connected_clients"):
+            print("Connected clients list is only supported on MR cellular models.")
+            return
+        clients = client.get_connected_clients()
+
+    if getattr(args, "json", False):
+        print(json.dumps(clients, indent=2))
+        return
+
+    print("\n" + "=" * 70)
+    print("  \033[1mCONNECTED LAN CLIENTS\033[0m")
+    print("=" * 70)
+    print(f"{'HOSTNAME':<22} {'IP ADDRESS':<16} {'MAC ADDRESS':<18} {'LEASE REMAINING':<12}")
+    print("-" * 70)
+    for c in clients:
+        print(f"{c['hostname']:<22} {c['ip']:<16} {c['mac']:<18} {c['lease_remaining']:<12}")
+    print("=" * 70 + f"\nTotal connected clients: {len(clients)}\n")
+
+
+def cmd_reservation(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_dhcp_reservations"):
+            print("DHCP reservations are only supported on MR cellular models.")
+            return
+
+        if args.subcommand == "list" or not getattr(args, "subcommand", None):
+            reservations = client.get_dhcp_reservations()
+            if getattr(args, "json", False):
+                print(json.dumps(reservations, indent=2))
+                return
+            print("\n" + "=" * 55)
+            print("  \033[1mSTATIC DHCP RESERVATIONS\033[0m")
+            print("=" * 55)
+            print(f"{'MAC ADDRESS':<20} {'RESERVED IP':<18} {'STATUS':<10}")
+            print("-" * 55)
+            for r in reservations:
+                status = "\033[92mEnabled\033[0m" if r["enabled"] else "\033[93mDisabled\033[0m"
+                print(f"{r['mac']:<20} {r['ip']:<18} {status:<10}")
+            print("=" * 55 + "\n")
+        elif args.subcommand == "add":
+            client.add_dhcp_reservation(args.mac, args.ip)
+            print(f"\033[92mReservation added: {args.mac} -> {args.ip}\033[0m")
+        elif args.subcommand == "del":
+            client.delete_dhcp_reservation(args.mac)
+            print(f"\033[92mReservation deleted for MAC {args.mac}\033[0m")
+
+
+def cmd_data_limit(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_data_limit"):
+            print("Data limits are only supported on cellular MR models.")
+            return
+
+        if getattr(args, "limit", None) is not None:
+            payment_day = getattr(args, "day", 1) or 1
+            client.set_data_limit(enabled=True, limit_mb=args.limit, payment_day=payment_day)
+            print(f"\033[92mData limit set to {args.limit} MB (Billing reset day: {payment_day})\033[0m")
+            return
+
+        data = client.get_data_limit()
+        if getattr(args, "json", False):
+            print(json.dumps(data, indent=2))
+            return
+
+        print("\n" + "=" * 55)
+        print("  \033[1mCELLULAR DATA LIMITS & USAGE\033[0m")
+        print("=" * 55)
+        print(f"Quota Enforcement   : {'\033[92mActive\033[0m' if data['limit_enabled'] else 'Disabled'}")
+        print(f"Monthly Limit       : {data['limit_mb']} MB ({round(data['limit_mb'] / 1024, 2)} GB)")
+        print(f"Billing Reset Day   : Day {data['billing_day']} of month")
+        print(f"Warning Alert At    : {data['warning_percent']}%")
+        print(f"Current Period Used : {round(data['current_period_bytes'] / (1024*1024), 2)} MB")
+        print(f"Total Transferred   : {round(data['total_bytes'] / (1024*1024), 2)} MB")
+        print(f"Current Throughput  : {data['rx_speed_kbps']} Kbps DL / {data['tx_speed_kbps']} Kbps UL")
+        print("=" * 55 + "\n")
+
+
+def cmd_wifi(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_wifi_status"):
+            print("Wi-Fi control is only supported on MR cellular models.")
+            return
+
+        if getattr(args, "toggle", None):
+            band = "2.4GHz" if "2" in args.band else "5GHz"
+            enabled = args.toggle in ("on", "enable")
+            client.set_wifi_radio(band=band, enabled=enabled, ssid=getattr(args, "ssid", None))
+            print(f"\033[92mWi-Fi {band} radio set to {'ON' if enabled else 'OFF'}\033[0m")
+            return
+
+        networks = client.get_wifi_status()
+        if getattr(args, "json", False):
+            print(json.dumps(networks, indent=2))
+            return
+
+        print("\n" + "=" * 65)
+        print("  \033[1mWIRELESS (WI-FI) NETWORKS\033[0m")
+        print("=" * 65)
+        for net in networks:
+            status = "\033[92mEnabled\033[0m" if net["enabled"] else "\033[91mDisabled\033[0m"
+            print(f"Band: \033[1m{net['band']}\033[0m  SSID: \033[1m{net['ssid']}\033[0m  State: {status}  Channel: {net['channel']}")
+        print("=" * 65 + "\n")
+
+
+def cmd_leds(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_led_status"):
+            print("LED control is only supported on MR cellular models.")
+            return
+
+        if getattr(args, "night_mode", None):
+            enable = args.night_mode in ("on", "enable")
+            start = getattr(args, "start", "22:00") or "22:00"
+            end = getattr(args, "end", "07:00") or "07:00"
+            client.set_led_night_mode(enabled=enable, start_time=start, end_time=end)
+            print(f"\033[92mNight mode {'enabled' if enable else 'disabled'} (LEDs OFF {start} - {end})\033[0m")
+            return
+
+        leds = client.get_led_status()
+        if getattr(args, "json", False):
+            print(json.dumps(leds, indent=2))
+            return
+
+        print("\n\033[1mRouter Front Panel LED Status:\033[0m")
+        print(f"  LEDs Active        : {'\033[92mYes\033[0m' if leds['leds_on'] else '\033[93mOff\033[0m'}")
+        print(f"  Night Mode Schedule: {'\033[92mEnabled\033[0m' if leds['night_mode_enabled'] else 'Disabled'}")
+        if leds["night_mode_enabled"]:
+            print(f"  Off Schedule Hours : {leds['night_mode_start']} -> {leds['night_mode_end']}")
+
+
+def cmd_diag(args: argparse.Namespace):
+    client = get_client(args)
+    print("Initiating router WAN & NCSI diagnostic self-test...")
+    with SafeSession(client):
+        if not hasattr(client, "run_wan_diagnostic"):
+            print("Router diagnostic is only supported on MR cellular models.")
+            return
+        res = client.run_wan_diagnostic()
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+        return
+
+    status_color = "\033[92m" if res["status"] == "Passed" else "\033[91m"
+    print(f"\nDiagnostic Result: {status_color}\033[1m{res['status']}\033[0m (Code {res['result_code']})")
+    print(f"Message          : {res['message']}\n")
+
+
+def cmd_band(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "set_lte_band"):
+            print("Band selection is only supported on MR cellular models.")
+            return
+        client.set_lte_band(args.band)
+    print(f"\033[92mLTE band successfully locked to {args.band.upper()}.\033[0m")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="tplink-cli",
@@ -320,6 +485,50 @@ def main():
     cfg_set.add_argument("--expected-ssid", help="Expected Wi-Fi SSID for safety guard")
     cfg_show = cfg_sub.add_parser("show", help="Show current configuration")
     p_cfg.set_defaults(func=cmd_config)
+
+    # clients
+    p_clients = subparsers.add_parser("clients", help="List connected LAN devices (IP, MAC, Hostname)")
+    p_clients.set_defaults(func=cmd_clients)
+
+    # reservation
+    p_resv = subparsers.add_parser("reservation", help="Manage DHCP static IP reservations")
+    resv_sub = p_resv.add_subparsers(dest="subcommand")
+    resv_list = resv_sub.add_parser("list", help="List all reservations")
+    resv_add = resv_sub.add_parser("add", help="Add DHCP static reservation")
+    resv_add.add_argument("mac", help="Device MAC address")
+    resv_add.add_argument("ip", help="Reserved IP address")
+    resv_del = resv_sub.add_parser("del", help="Delete DHCP reservation")
+    resv_del.add_argument("mac", help="Device MAC address to remove")
+    p_resv.set_defaults(func=cmd_reservation)
+
+    # data-limit
+    p_dlim = subparsers.add_parser("data-limit", help="View or set monthly cellular data cap")
+    p_dlim.add_argument("--limit", type=int, help="Monthly quota in Megabytes (e.g. 50000 for 50GB)")
+    p_dlim.add_argument("--day", type=int, default=1, help="Billing cycle reset day of month (1-31)")
+    p_dlim.set_defaults(func=cmd_data_limit)
+
+    # wifi
+    p_wifi = subparsers.add_parser("wifi", help="View or configure Wi-Fi radios (2.4GHz / 5GHz)")
+    p_wifi.add_argument("--band", choices=["2.4GHz", "5GHz", "2.4", "5"], default="2.4GHz", help="Frequency band")
+    p_wifi.add_argument("--toggle", choices=["on", "off", "enable", "disable"], help="Turn radio on/off")
+    p_wifi.add_argument("--ssid", help="Set new SSID name")
+    p_wifi.set_defaults(func=cmd_wifi)
+
+    # leds
+    p_leds = subparsers.add_parser("leds", help="Control router LEDs and Night Mode schedule")
+    p_leds.add_argument("--night-mode", choices=["on", "off", "enable", "disable"], help="Toggle night mode schedule")
+    p_leds.add_argument("--start", default="22:00", help="Night mode start time (HH:MM)")
+    p_leds.add_argument("--end", default="07:00", help="Night mode end time (HH:MM)")
+    p_leds.set_defaults(func=cmd_leds)
+
+    # diag
+    p_diag = subparsers.add_parser("diag", help="Run router WAN and internet diagnostic test")
+    p_diag.set_defaults(func=cmd_diag)
+
+    # band
+    p_band = subparsers.add_parser("band", help="Lock modem to specific LTE Band (e.g. 3, 8, 40, auto)")
+    p_band.add_argument("band", help="LTE Band (e.g. 3, 8, 40, or auto)")
+    p_band.set_defaults(func=cmd_band)
 
     # repl
     p_repl = subparsers.add_parser("repl", help="Launch interactive REPL console")
