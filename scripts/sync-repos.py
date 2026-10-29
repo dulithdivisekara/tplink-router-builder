@@ -95,7 +95,7 @@ def sync_mcp():
 
     # Sync tests
     for t in (BUILDER_DIR / "tests").glob("test_*.py"):
-        if t.name.startswith("test_cli"):
+        if t.name.startswith("test_cli") or "tui" in t.name:
             continue
         shutil.copy2(t, MCP_DIR / "tests" / t.name)
 
