@@ -47,3 +47,7 @@ tplink-mcp = "tplink_router.mcp.server:main"
 Homepage = "https://github.com/dulithdivisekara/tplink-router-builder"
 Repository = "https://github.com/dulithdivisekara/tplink-router-builder.git"
 Issues = "https://github.com/dulithdivisekara/tplink-router-builder/issues"
+
+[tool.setuptools.package-data]
+"*" = ["*.mjs", "*.html", "*.css", "*.js", "*.json"]
+

@@ -144,6 +144,8 @@ def print_modern_ui(
     flags = [
         ("-h, --help", "Display this modern TP-Link command reference"),
         ("--mono", "Render logo, TUI, and command cards in Black & White monochrome"),
+        ("--no-anim", "Disable terminal motion spinners and shimmer animations"),
+        ("--python-tui", "Use pure-Python TUI engine instead of vadimdemedes/ink React UI"),
         ("--legacy", "Use classic plain-ASCII layout and standard argparse help"),
         ("--json", "Emit machine-readable JSON for scripts & CI pipelines"),
         ("--host <url>", f"Override target gateway URL (default: {target_host})"),

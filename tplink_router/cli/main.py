@@ -1,6 +1,7 @@
 """Unified CLI command-line interface for TP-Link Router Management."""
 
 import argparse
+from contextlib import contextmanager
 import getpass
 import json
 import shlex
@@ -9,6 +10,7 @@ import time
 from typing import Any, List, Optional
 import requests
 
+from tplink_router.cli.animator import clear_active_spinner, router_spinner
 from tplink_router.cli.repl import run_repl
 from tplink_router.cli.theme import (
     get_palette,
@@ -34,6 +36,14 @@ def _is_legacy(args: Optional[argparse.Namespace]) -> bool:
 
 def _is_mono(args: Optional[argparse.Namespace]) -> bool:
     return bool(getattr(args, "mono", False)) if args else False
+
+
+@contextmanager
+def animated_session(client: Any, args: Optional[argparse.Namespace], label: str):
+    """Wrap SafeSession with a Claude-Code-style transient terminal animation."""
+    with router_spinner(label=label, args=args):
+        with SafeSession(client):
+            yield
 
 
 def get_client(args: argparse.Namespace) -> Any:
@@ -85,7 +95,7 @@ def get_client(args: argparse.Namespace) -> Any:
 
 def cmd_status(args: argparse.Namespace):
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Polling TP-Link router & LTE RF telemetry…'):
         telemetry = client.get_telemetry()
 
     if getattr(args, "json", False):
@@ -193,7 +203,7 @@ def cmd_status(args: argparse.Namespace):
 
 def cmd_signal(args: argparse.Namespace):
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Measuring cellular LTE RF signal metrics…'):
         if not hasattr(client, "get_lte_status"):
             print("Signal metrics are only available on cellular MR models.")
             return
@@ -252,7 +262,7 @@ def cmd_signal(args: argparse.Namespace):
 def cmd_cell_lock(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Communicating with cellular EARFCN/PCI baseband…'):
         if not hasattr(client, "get_cell_lock"):
             print("Cell Lock is only supported on cellular MR models.")
             return
@@ -354,7 +364,7 @@ def cmd_cell_lock(args: argparse.Namespace):
 def cmd_dns(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Synchronizing router WAN DNS resolver configuration…'):
         action = getattr(args, "action", None)
         if action == "set":
             primary = getattr(args, "primary", None)
@@ -466,7 +476,7 @@ def cmd_ipv6(args: argparse.Namespace):
             state_str = picked
 
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Querying & updating router WAN IPv6 stack…'):
         if not state_str:
             v4, v6 = client.get_wan_config()
             is_enabled = bool(v6.enabled or v6.ip)
@@ -587,7 +597,7 @@ def cmd_ussd(args: argparse.Namespace):
             return
 
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Transmitting cellular GSM/LTE USSD session…'):
         if not hasattr(client, "send_ussd"):
             print("USSD commands are only supported on cellular MR models.")
             return
@@ -610,7 +620,7 @@ def cmd_ussd(args: argparse.Namespace):
 def cmd_sms(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Accessing cellular SIM SMS message storage…'):
         if not hasattr(client, "get_sms"):
             print("SMS is only supported on cellular MR models.")
             return
@@ -698,7 +708,7 @@ def cmd_reboot(args: argparse.Namespace):
                 print_toast("info", "Reboot cancelled.", mono=mono)
             return
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Dispatching protected hardware reboot sequence…'):
         client.reboot()
     if getattr(args, "json", False):
         print(json.dumps({"success": True, "message": "Router reboot initiated. Reconnect in 60-90 seconds."}, indent=2))
@@ -1102,7 +1112,7 @@ def cmd_repl(args: argparse.Namespace):
 
 def cmd_clients(args: argparse.Namespace):
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Enumerating connected LAN & Wi-Fi client leases…'):
         if not hasattr(client, "get_connected_clients"):
             print("Connected clients list is only supported on MR cellular models.")
             return
@@ -1137,7 +1147,7 @@ def cmd_clients(args: argparse.Namespace):
 def cmd_reservation(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Synchronizing DHCP static IP reservation table…'):
         if not hasattr(client, "get_dhcp_reservations"):
             print("DHCP reservations are only supported on MR cellular models.")
             return
@@ -1229,7 +1239,7 @@ def cmd_reservation(args: argparse.Namespace):
 def cmd_data_limit(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Querying monthly cellular data quota & billing state…'):
         if not hasattr(client, "get_data_limit"):
             print("Data limits are only supported on cellular MR models.")
             return
@@ -1291,7 +1301,7 @@ def cmd_data_limit(args: argparse.Namespace):
 def cmd_wifi(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Communicating with dual-band 2.4GHz / 5GHz Wi-Fi radios…'):
         if not hasattr(client, "get_wifi_status"):
             print("Wi-Fi control is only supported on MR cellular models.")
             return
@@ -1353,7 +1363,7 @@ def cmd_wifi(args: argparse.Namespace):
 def cmd_leds(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Querying hardware LED indicators & Night Mode schedule…'):
         if not hasattr(client, "get_led_status"):
             print("LED control is only supported on MR cellular models.")
             return
@@ -1409,7 +1419,7 @@ def cmd_diag(args: argparse.Namespace):
     mono = _is_mono(args)
     if _is_legacy(args):
         print("Initiating router WAN & NCSI diagnostic self-test...")
-    with SafeSession(client):
+    with animated_session(client, args, 'Running router WAN & NCSI internet self-diagnostics…'):
         if not hasattr(client, "run_wan_diagnostic"):
             print("Router diagnostic is only supported on MR cellular models.")
             return
@@ -1460,7 +1470,7 @@ def cmd_band(args: argparse.Namespace):
             target_band = picked
 
     client = get_client(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Communicating with LTE frequency band controller…'):
         if not hasattr(client, "set_lte_band"):
             print("Band selection is only supported on MR cellular models.")
             return
@@ -1575,7 +1585,7 @@ def cmd_band(args: argparse.Namespace):
 def cmd_logs(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Fetching router system & 4G cellular event logs…'):
         if not hasattr(client, "get_system_logs"):
             print("System logs are only supported on MR cellular models.")
             return
@@ -1656,7 +1666,7 @@ def cmd_logs(args: argparse.Namespace):
 def cmd_guest_wifi(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Synchronizing isolated Guest Wi-Fi configuration…'):
         if not hasattr(client, "get_guest_wifi"):
             print("Guest Wi-Fi is only supported on MR cellular models.")
             return
@@ -1741,7 +1751,7 @@ def cmd_guest_wifi(args: argparse.Namespace):
 def cmd_port_forward(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Synchronizing NAT virtual server port forwarding rules…'):
         if not hasattr(client, "get_port_forwarding"):
             print("Port forwarding is only supported on MR cellular models.")
             return
@@ -1864,7 +1874,7 @@ def cmd_port_forward(args: argparse.Namespace):
 def cmd_dmz(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Querying NAT DMZ exposed host configuration…'):
         if not hasattr(client, "get_dmz"):
             print("DMZ Host is only supported on MR cellular models.")
             return
@@ -1937,7 +1947,7 @@ def cmd_dmz(args: argparse.Namespace):
 def cmd_upnp(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Querying Universal Plug and Play (UPnP) NAT leases…'):
         if not hasattr(client, "get_upnp"):
             print("UPnP is only supported on MR cellular models.")
             return
@@ -2018,7 +2028,7 @@ def cmd_upnp(args: argparse.Namespace):
 def cmd_reboot_schedule(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Synchronizing automated periodic reboot schedule…'):
         if not hasattr(client, "get_reboot_schedule"):
             print("Reboot schedule is only supported on MR cellular models.")
             return
@@ -2099,7 +2109,7 @@ def cmd_reboot_schedule(args: argparse.Namespace):
 def cmd_time(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Querying router system clock & NTP time service…'):
         if not hasattr(client, "get_time_config"):
             print("System time is only supported on MR cellular models.")
             return
@@ -2165,7 +2175,7 @@ def cmd_time(args: argparse.Namespace):
 def cmd_op_mode(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Inspecting router hardware operation mode…'):
         if not hasattr(client, "get_operation_mode"):
             print("Operation mode is only supported on MR cellular models.")
             return
@@ -2205,7 +2215,7 @@ def cmd_op_mode(args: argparse.Namespace):
 def cmd_ddns(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Inspecting Dynamic DNS provider bindings…'):
         if not hasattr(client, "get_ddns_status"):
             print("DDNS is only supported on MR cellular models.")
             return
@@ -2255,7 +2265,7 @@ def cmd_ddns(args: argparse.Namespace):
 def cmd_fw_check(args: argparse.Namespace):
     client = get_client(args)
     mono = _is_mono(args)
-    with SafeSession(client):
+    with animated_session(client, args, 'Checking TP-Link cloud for official firmware updates…'):
         if not hasattr(client, "check_firmware_update"):
             print("Firmware check is only supported on MR cellular models.")
             return
@@ -2447,6 +2457,8 @@ def build_parser() -> argparse.ArgumentParser:
     common_parser.add_argument("--force", action="store_true", default=argparse.SUPPRESS, help="Bypass Network Guard checks")
     common_parser.add_argument("--legacy", action="store_true", default=argparse.SUPPRESS, help="Show classic standard argparse & plain ASCII layout")
     common_parser.add_argument("--mono", action="store_true", default=argparse.SUPPRESS, help="Render modern UI in Black & White monochrome")
+    common_parser.add_argument("--no-anim", dest="no_anim", action="store_true", default=argparse.SUPPRESS, help="Disable terminal motion spinners and shimmer animations")
+    common_parser.add_argument("--python-tui", dest="python_tui", action="store_true", default=argparse.SUPPRESS, help="Use pure-Python fallback TUI instead of vadimdemedes/ink React UI")
 
     parser = argparse.ArgumentParser(
         prog="tplink-cli",
@@ -2678,21 +2690,53 @@ def build_parser() -> argparse.ArgumentParser:
 
     # tui
     def _cmd_tui(a):
-        from tplink_router.cli.interactive_tui import launch_tui
         cfg_mgr = ConfigManager()
         cfg = cfg_mgr.load()
         target_host = getattr(a, "host", None) or cfg.get("host", "http://192.168.1.1")
         if target_host == "SHOW":
             target_host = cfg.get("host", "http://192.168.1.1")
-        chosen = launch_tui(target_host=target_host, mono=_is_mono(a))
+        chosen = launch_best_tui(
+            target_host=target_host,
+            mono=_is_mono(a),
+            no_anim=bool(getattr(a, "no_anim", False)),
+            prefer_python=bool(getattr(a, "python_tui", False)),
+        )
         if chosen:
             return dispatch_tui_command(chosen, parser, mono=_is_mono(a))
         return 0
 
-    p_tui = subparsers.add_parser("tui", parents=[common_parser], help="Launch interactive Terminal UI (TUI)")
+    p_tui = subparsers.add_parser("tui", parents=[common_parser], help="Launch interactive Terminal UI (vadimdemedes/ink React TUI)")
     p_tui.set_defaults(func=_cmd_tui)
 
     return parser
+
+
+def launch_best_tui(
+    target_host: str = "http://192.168.1.1",
+    mono: bool = False,
+    no_anim: bool = False,
+    prefer_python: bool = False,
+) -> Optional[str]:
+    """
+    Launch the bundled vadimdemedes/ink React TUI by default when Node.js is
+    available, falling back cleanly to the pure-Python TUI engine when requested
+    via `--python-tui` or when Node.js is absent.
+    """
+    if not prefer_python:
+        from tplink_router.cli.ink_ui import is_ink_available, launch_ink_tui
+
+        if is_ink_available():
+            handled, handoff = launch_ink_tui(
+                target_host=target_host,
+                mono=mono,
+                no_anim=no_anim,
+            )
+            if handled:
+                return handoff
+
+    from tplink_router.cli.interactive_tui import launch_tui
+
+    return launch_tui(target_host=target_host, mono=mono)
 
 
 def dispatch_tui_command(chosen_cmd: str, parser: argparse.ArgumentParser, mono: bool = False) -> int:
@@ -2709,6 +2753,8 @@ def dispatch_tui_command(chosen_cmd: str, parser: argparse.ArgumentParser, mono:
         ("force", False),
         ("legacy", False),
         ("mono", mono),
+        ("no_anim", False),
+        ("python_tui", False),
     ]:
         if not hasattr(parsed, _k):
             setattr(parsed, _k, _v)
@@ -2716,6 +2762,7 @@ def dispatch_tui_command(chosen_cmd: str, parser: argparse.ArgumentParser, mono:
         parsed.func(parsed)
         return 0
     except KeyboardInterrupt:
+        clear_active_spinner()
         print("\n\033[93m[Aborted] Operation cancelled by user.\033[0m")
         return 130
     except Exception as e:
@@ -2735,12 +2782,15 @@ def main(args=None):
     has_subcmd = any(a in subcommands for a in raw_args)
     is_legacy = any(a in ("--legacy", "legacy") for a in raw_args)
     is_mono = "--mono" in raw_args
+    is_no_anim = "--no-anim" in raw_args
+    is_python_tui = "--python-tui" in raw_args
     is_help = any(a in ("-h", "--help", "help") for a in raw_args)
 
-    # Intercept bare invocation (or bare `--mono` without subcommand)
+    # Intercept bare invocation (or bare `--mono` / `--no-anim` / `--python-tui` without subcommand)
     if not has_subcmd:
         non_flags = [a for a in raw_args if not a.startswith("-")]
-        only_theme_flags = all(a == "--mono" for a in raw_args)
+        tui_flags = {"--mono", "--no-anim", "--python-tui"}
+        only_theme_flags = all(a in tui_flags for a in raw_args)
         if not non_flags and (len(raw_args) == 0 or (only_theme_flags and not is_help)):
             if is_legacy:
                 parser = build_parser()
@@ -2751,8 +2801,12 @@ def main(args=None):
             target_host = cfg.get("host", "http://192.168.1.1")
 
             if sys.stdin.isatty() and sys.stdout.isatty():
-                from tplink_router.cli.interactive_tui import launch_tui
-                chosen_cmd = launch_tui(target_host=target_host, mono=is_mono)
+                chosen_cmd = launch_best_tui(
+                    target_host=target_host,
+                    mono=is_mono,
+                    no_anim=is_no_anim,
+                    prefer_python=is_python_tui,
+                )
                 if not chosen_cmd:
                     return 0
                 return dispatch_tui_command(chosen_cmd, build_parser(), mono=is_mono)
@@ -2783,6 +2837,8 @@ def main(args=None):
         ("force", False),
         ("legacy", False),
         ("mono", False),
+        ("no_anim", False),
+        ("python_tui", False),
     ]:
         if not hasattr(parsed_args, _k):
             setattr(parsed_args, _k, _v)
@@ -2869,6 +2925,7 @@ def main(args=None):
     try:
         parsed_args.func(parsed_args)
     except KeyboardInterrupt:
+        clear_active_spinner()
         print("\n\033[93m[Aborted] Operation cancelled by user.\033[0m")
         sys.exit(130)
     except Exception as e:
@@ -2876,6 +2933,7 @@ def main(args=None):
 
 
 def handle_cli_error(e: Exception, args: Optional[argparse.Namespace] = None) -> int:
+    clear_active_spinner()
     is_json = getattr(args, "json", False) if args else False
     legacy = _is_legacy(args)
     mono = _is_mono(args)

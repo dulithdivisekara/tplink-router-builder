@@ -454,6 +454,9 @@ def print_panel(
     width: Optional[int] = None,
 ) -> None:
     """Print a themed rounded panel with vertical breathing space."""
+    from tplink_router.cli.animator import clear_active_spinner
+
+    clear_active_spinner()
     print()
     print(
         render_panel(

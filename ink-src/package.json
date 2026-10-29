@@ -1,0 +1,20 @@
+{
+  "name": "tplink-cli-ink-ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "React + vadimdemedes/ink animated Terminal UI for tplink-cli",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "ink": "^6.8.0",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  }
+}
