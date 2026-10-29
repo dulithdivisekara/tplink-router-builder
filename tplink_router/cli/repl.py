@@ -4,6 +4,23 @@ import sys
 import shlex
 from typing import Any
 
+try:
+    import readline
+    REPL_COMMANDS = [
+        "status", "signal", "cell-lock", "dns", "ipv6", "clients", "data-limit",
+        "wifi", "guest-wifi", "leds", "diag", "band", "logs", "sms", "ussd",
+        "reboot", "help", "exit", "quit"
+    ]
+    def _completer(text, state):
+        options = [c for c in REPL_COMMANDS if c.startswith(text)]
+        if state < len(options):
+            return options[state]
+        return None
+    readline.set_completer(_completer)
+    readline.parse_and_bind("tab: complete")
+except Exception:
+    pass
+
 from tplink_router.core.session import SafeSession
 
 

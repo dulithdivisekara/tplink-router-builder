@@ -265,13 +265,14 @@ def cmd_ipv6(args: argparse.Namespace):
     with SafeSession(client):
         if not state_str:
             v4, v6 = client.get_wan_config()
-            is_enabled = bool(v6.ip or (v6.dns and any(d != "0.0.0.0" for d in v6.dns)))
+            is_enabled = bool(v6.enabled or v6.ip)
             if getattr(args, "json", False):
                 print(json.dumps({
                     "ipv6_enabled": is_enabled,
                     "ipv6_address": v6.ip or None,
                     "ipv6_dns": v6.dns or [],
-                    "gateway": v6.gateway or None
+                    "gateway": v6.gateway or None,
+                    "status": v6.status
                 }, indent=2))
                 return
             print("\n" + "=" * 55)
@@ -279,10 +280,17 @@ def cmd_ipv6(args: argparse.Namespace):
             print("=" * 55)
             status_str = "\033[92mENABLED\033[0m" if is_enabled else "\033[90mDISABLED\033[0m"
             print(f"IPv6 Stack State   : {status_str}")
-            if v6.ip:
-                print(f"IPv6 WAN Address   : {v6.ip}")
-            if v6.dns:
-                print(f"IPv6 DNS Resolvers : {', '.join(v6.dns)}")
+            if is_enabled:
+                if v6.ip:
+                    print(f"IPv6 WAN Address   : {v6.ip}")
+                else:
+                    print(f"IPv6 WAN Address   : Not Assigned (Cellular Bearer IPv4-Only / SLAAC Pending)")
+                if v6.dns:
+                    print(f"IPv6 DNS Resolvers : {', '.join(v6.dns)}")
+                else:
+                    print(f"IPv6 DNS Resolvers : ISP Default")
+                if v6.gateway:
+                    print(f"IPv6 Gateway       : {v6.gateway}")
             print("-" * 55)
             print("To toggle IPv6:")
             print("  tplink-cli ipv6 on")
@@ -298,7 +306,7 @@ def cmd_ipv6(args: argparse.Namespace):
                 "ipv6_enabled": state
             }, indent=2))
             return
-    print(f"\033[92mIPv6 {'enabled' if state else 'disabled'} successfully.\033[0m")
+    print(f"\033[92m✓ IPv6 {'enabled' if state else 'disabled'} successfully.\033[0m")
 
 
 def cmd_ussd(args: argparse.Namespace):
@@ -1593,6 +1601,7 @@ def build_parser() -> argparse.ArgumentParser:
     common_parser.add_argument("--password", nargs="?", const="PROMPT", default=argparse.SUPPRESS, help="Admin password (overrides stored config)")
     common_parser.add_argument("--cookie", "--session-id", dest="cookie", nargs="?", const="PROMPT", default=argparse.SUPPRESS, help="Browser session cookie (JSESSIONID or Netscape format)")
     common_parser.add_argument("--force", action="store_true", default=argparse.SUPPRESS, help="Bypass Network Guard checks")
+    common_parser.add_argument("--legacy", action="store_true", default=argparse.SUPPRESS, help="Show classic standard argparse layout")
 
     parser = argparse.ArgumentParser(
         prog="tplink-cli",
@@ -1815,13 +1824,44 @@ def build_parser() -> argparse.ArgumentParser:
     p_repl = subparsers.add_parser("repl", parents=[common_parser], help="Launch interactive REPL console")
     p_repl.set_defaults(func=cmd_repl)
 
+    # legacy
+    p_legacy = subparsers.add_parser("legacy", parents=[common_parser], help="Display classic standard argparse help layout")
+    p_legacy.set_defaults(func=lambda a: parser.print_help())
+
     return parser
 
 
 def main(args=None):
+    raw_args = list(sys.argv[1:]) if args is None else list(args)
+
+    subcommands = {
+        "status", "signal", "cell-lock", "dns", "ipv6", "ussd", "sms", "reboot",
+        "profile", "config", "cookie", "wifi-guard", "clients", "reservation",
+        "data-limit", "wifi", "leds", "diag", "band", "calibrate", "logs",
+        "guest-wifi", "port-forward", "dmz", "upnp", "reboot-schedule", "time",
+        "op-mode", "ddns", "fw-check", "repl", "legacy"
+    }
+    has_subcmd = any(a in subcommands for a in raw_args)
+    is_legacy = any(a in ("--legacy", "-l", "legacy") for a in raw_args)
+    is_help = any(a in ("-h", "--help", "help") for a in raw_args)
+
+    # Intercept bare or top-level help invocation
+    if not has_subcmd:
+        non_flags = [a for a in raw_args if not a.startswith("-")]
+        if not non_flags and (len(raw_args) == 0 or is_help):
+            if is_legacy:
+                parser = build_parser()
+                parser.print_help()
+                return 0
+            cfg_mgr = ConfigManager()
+            cfg = cfg_mgr.load()
+            from tplink_router.cli.modern_ui import print_modern_ui
+            print_modern_ui(cfg.get("host", "http://192.168.1.1"))
+            return 0
+
     parser = build_parser()
     parsed_args = parser.parse_args(args)
-    for _k, _v in [("json", False), ("host", None), ("username", None), ("password", None), ("cookie", None), ("force", False)]:
+    for _k, _v in [("json", False), ("host", None), ("username", None), ("password", None), ("cookie", None), ("force", False), ("legacy", False)]:
         if not hasattr(parsed_args, _k):
             setattr(parsed_args, _k, _v)
 
@@ -1873,7 +1913,11 @@ def main(args=None):
             print("  tplink-cli cookie <cookie_string_or_jsessionid>\n")
             return 0
 
-        parser.print_help()
+        if getattr(parsed_args, "legacy", False):
+            parser.print_help()
+        else:
+            from tplink_router.cli.modern_ui import print_modern_ui
+            print_modern_ui(cfg.get("host", "http://192.168.1.1"))
         return 0
 
     # If subcommand IS given, but user passed bare --host or --username without value, normalize
