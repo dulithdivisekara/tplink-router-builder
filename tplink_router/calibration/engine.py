@@ -85,6 +85,7 @@ class RouterCalibrator:
         watchdog_timeout: int = DEFAULT_WATCHDOG_SEC,
         state_file: Path = DEFAULT_STATE_FILE,
         dry_run: bool = False,
+        echo_stdout: bool = False,
         on_update: Optional[Callable[[Dict[str, Any]], None]] = None,
     ):
         self.host = host.rstrip("/")
@@ -95,6 +96,7 @@ class RouterCalibrator:
         self.watchdog_timeout = watchdog_timeout
         self.state_file = Path(state_file)
         self.dry_run = dry_run
+        self.echo_stdout = echo_stdout
         self.on_update = on_update
 
         self.running = False
@@ -139,6 +141,9 @@ class RouterCalibrator:
                 self.state["logs"].pop(0)
             self.state["message"] = msg
         logger.info(entry)
+        if self.echo_stdout:
+            color = "\033[93m" if level == "WARN" else ("\033[91m" if level == "ERROR" else "\033[96m")
+            print(f"{color}[{timestamp}] [{level}]\033[0m {msg}")
         self._write_state()
 
     def _write_state(self):

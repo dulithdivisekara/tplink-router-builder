@@ -143,13 +143,37 @@ def cmd_cell_lock(args: argparse.Namespace):
 
         if getattr(args, "enable", False):
             if not getattr(args, "earfcn", None) or not getattr(args, "pci", None):
-                print("\033[91mError: Both --earfcn and --pci are required when enabling Cell Lock.\033[0m")
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_CELL_LOCK_PARAMS",
+                        "message": "Both --earfcn and --pci are required when enabling Cell Lock."
+                    }, indent=2))
+                else:
+                    print("\033[91mError: Both --earfcn and --pci are required when enabling Cell Lock.\033[0m")
                 sys.exit(1)
             client.set_cell_lock(True, args.earfcn, args.pci)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "enabled": True,
+                    "earfcn": args.earfcn,
+                    "pci": args.pci
+                }, indent=2))
+                return
             print(f"\033[92mCell Lock applied to EARFCN {args.earfcn}, PCI {args.pci}!\033[0m")
+            return
         elif getattr(args, "disable", False):
             client.set_cell_lock(False)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "enabled": False,
+                    "message": "Auto roaming restored"
+                }, indent=2))
+                return
             print("\033[92mCell Lock disabled (Auto roaming restored).\033[0m")
+            return
         else:
             lock = client.get_cell_lock()
             if getattr(args, "json", False):
@@ -184,6 +208,13 @@ def cmd_dns(args: argparse.Namespace):
         if action == "set":
             primary = getattr(args, "primary", None)
             if not primary:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_PRIMARY_DNS",
+                        "message": "Primary DNS server IP address is required."
+                    }, indent=2))
+                    sys.exit(1)
                 print("\nUsage: tplink-cli dns set <primary_dns> [secondary_dns]")
                 print("Examples:")
                 print("  tplink-cli dns set 1.1.1.1 1.0.0.1    (Cloudflare)")
@@ -191,7 +222,15 @@ def cmd_dns(args: argparse.Namespace):
                 return
             secondary = getattr(args, "secondary", "8.8.8.8") or "8.8.8.8"
             client.set_dns(primary, secondary)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "primary_dns": primary,
+                    "secondary_dns": secondary
+                }, indent=2))
+                return
             print(f"\033[92mDNS configured to {primary}, {secondary}\033[0m")
+            return
         else:
             v4, v6 = client.get_wan_config()
             if getattr(args, "json", False):
@@ -253,6 +292,12 @@ def cmd_ipv6(args: argparse.Namespace):
 
         state = state_str.lower() in ("on", "1", "true", "enable")
         client.toggle_ipv6(state)
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "success": True,
+                "ipv6_enabled": state
+            }, indent=2))
+            return
     print(f"\033[92mIPv6 {'enabled' if state else 'disabled'} successfully.\033[0m")
 
 
@@ -308,6 +353,13 @@ def cmd_sms(args: argparse.Namespace):
             recip = getattr(args, "recipient", None)
             msg = getattr(args, "message", None)
             if not recip or not msg:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_SMS_PARAMS",
+                        "message": "Both recipient and message are required."
+                    }, indent=2))
+                    sys.exit(1)
                 if sys.stdin.isatty():
                     try:
                         if not recip:
@@ -322,6 +374,13 @@ def cmd_sms(args: argparse.Namespace):
                 print("Example: tplink-cli sms send +94771234567 'Hello from router'\n")
                 return
             client.send_sms(recip, msg)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "recipient": recip,
+                    "message": msg
+                }, indent=2))
+                return
             print("\033[92mSMS sent successfully.\033[0m")
         else:
             limit = getattr(args, "limit", 10) or 10
@@ -364,6 +423,16 @@ def cmd_profile_check(args: argparse.Namespace):
     ssid = NetworkGuard.get_current_ssid()
     cfg = ConfigManager().load()
     is_safe, msg = NetworkGuard.check_safety(target_host=cfg["host"], expected_ssid=cfg.get("expected_ssid"))
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "current_ssid": ssid or "Wired / Hotspot",
+            "default_gateway": gw or "Unknown",
+            "target_router_host": cfg["host"],
+            "is_safe": is_safe,
+            "detail": msg
+        }, indent=2))
+        return
 
     print("\n" + "=" * 60)
     print("  \033[1mHOST NETWORK ENVIRONMENT CHECK\033[0m")
@@ -430,7 +499,18 @@ def cmd_config(args: argparse.Namespace):
         has_pwd = bool(cfg.get("password"))
         cookie_val = cfg.get("session_cookie")
         has_cookie = bool(cookie_val)
-        masked_cookie = f"{cookie_val[:6]}...{cookie_val[-6:]}" if (cookie_val and len(cookie_val) > 12) else "[SET]"
+        masked_cookie = f"{cookie_val[:6]}...{cookie_val[-6:]}" if (cookie_val and len(cookie_val) > 12) else ("[SET]" if has_cookie else "[NOT SET]")
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "config_file": str(cfg_mgr.config_file),
+                "host": cfg["host"],
+                "username": cfg["username"],
+                "expected_ssid": cfg.get("expected_ssid") or None,
+                "has_password": has_pwd,
+                "has_session_cookie": has_cookie,
+                "masked_cookie": masked_cookie
+            }, indent=2))
+            return
         print(f"Config File    : {cfg_mgr.config_file}")
         print(f"Router Host    : {cfg['host']}")
         print(f"Username       : {cfg['username']}")
@@ -445,8 +525,16 @@ def cmd_cookie(args: argparse.Namespace):
     if not cookie_val:
         cfg = cfg_mgr.load()
         c = cfg.get("session_cookie")
+        has_cookie = bool(c)
+        masked = f"{c[:6]}...{c[-6:]}" if (c and len(c) > 12) else c
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "has_session_cookie": has_cookie,
+                "session_cookie": masked if has_cookie else None,
+                "config_file": str(cfg_mgr.config_file)
+            }, indent=2))
+            return
         if c:
-            masked = f"{c[:6]}...{c[-6:]}" if len(c) > 12 else c
             print(f"\n\033[1mCurrent Session Cookie:\033[0m {masked} (JSESSIONID)")
             print(f"Saved in: {cfg_mgr.config_file}\n")
         else:
@@ -459,10 +547,24 @@ def cmd_cookie(args: argparse.Namespace):
     from tplink_router.core.cookie_parser import extract_jsessionid
     extracted = extract_jsessionid(cookie_val)
     if not extracted:
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "error": True,
+                "code": "INVALID_COOKIE",
+                "message": "Could not extract valid JSESSIONID from input."
+            }, indent=2))
+            sys.exit(1)
         print("\033[91mError: Could not extract valid JSESSIONID from input.\033[0m")
         sys.exit(1)
     cfg_mgr.save(session_cookie=extracted)
     masked = f"{extracted[:6]}...{extracted[-6:]}" if len(extracted) > 12 else extracted
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "success": True,
+            "session_cookie": masked,
+            "config_file": str(cfg_mgr.config_file)
+        }, indent=2))
+        return
     print(f"\033[92mSession cookie (JSESSIONID: {masked}) successfully saved to {cfg_mgr.config_file}.\033[0m")
 
 
@@ -471,15 +573,8 @@ def cmd_wifi_guard(args: argparse.Namespace):
     import subprocess
     import shutil
 
-    print("\n" + "=" * 65)
-    print("  \033[1mWI-FI ONLY OPERATION & LINK STABILITY GUARD\033[0m")
-    print("=" * 65)
-
     ssid = NetworkGuard.get_current_ssid()
     gw = NetworkGuard.get_current_gateway()
-
-    print(f"Connected Wi-Fi SSID : \033[1m{ssid or 'Unknown'}\033[0m")
-    print(f"Default Gateway      : {gw or 'Unknown'}")
 
     # Check power save on wireless interface
     ps_status = "Unknown"
@@ -499,9 +594,6 @@ def cmd_wifi_guard(args: argparse.Namespace):
     except Exception:
         pass
 
-    print(f"Wireless Interface   : {wlan_iface}")
-    print(f"Wi-Fi Power Save     : {ps_status}")
-
     # Check autoconnect priority
     nm_priority = "N/A"
     if ssid and shutil.which("nmcli"):
@@ -517,16 +609,11 @@ def cmd_wifi_guard(args: argparse.Namespace):
         except Exception:
             pass
 
-    print(f"Autoconnect Priority : {nm_priority}")
-    print("-" * 65)
-
     if getattr(args, "fix", False) or getattr(args, "optimize", False):
-        print("\033[93mApplying Wi-Fi Stability Optimizations...\033[0m")
         # 1. Set expected SSID in config
         if ssid:
             cfg_mgr = ConfigManager()
             cfg_mgr.save(expected_ssid=ssid)
-            print(f"  ✓ Locked Network Guard to expected SSID: {ssid}")
 
         # 2. Elevate autoconnect priority if nmcli is available
         if ssid and shutil.which("nmcli"):
@@ -535,27 +622,72 @@ def cmd_wifi_guard(args: argparse.Namespace):
                     ["nmcli", "connection", "modify", ssid, "connection.autoconnect-priority", "50"],
                     capture_output=True, text=True, check=False
                 )
-                print(f"  ✓ Elevated NetworkManager autoconnect-priority for '{ssid}' to 50")
-            except Exception as e:
-                print(f"  ! Could not set autoconnect-priority: {e}")
+            except Exception:
+                pass
 
         # 3. Disable power save if iw is available
         try:
             subprocess.run(["iw", "dev", wlan_iface, "set", "power_save", "off"], capture_output=True, text=True, check=False)
-            print(f"  ✓ Requested Wi-Fi power save OFF on {wlan_iface}")
         except Exception:
             pass
 
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "success": True,
+                "optimized": True,
+                "connected_ssid": ssid or "Unknown",
+                "interface": wlan_iface,
+                "autoconnect_priority": "50",
+                "wifi_power_save": "OFF"
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 65)
+        print("  \033[1mWI-FI ONLY OPERATION & LINK STABILITY GUARD\033[0m")
+        print("=" * 65)
+        print(f"Connected Wi-Fi SSID : \033[1m{ssid or 'Unknown'}\033[0m")
+        print(f"Default Gateway      : {gw or 'Unknown'}")
+        print(f"Wireless Interface   : {wlan_iface}")
+        print(f"Wi-Fi Power Save     : {ps_status}")
+        print(f"Autoconnect Priority : {nm_priority}")
+        print("-" * 65)
+        print("\033[93mApplying Wi-Fi Stability Optimizations...\033[0m")
+        if ssid:
+            print(f"  ✓ Locked Network Guard to expected SSID: {ssid}")
+        if ssid and shutil.which("nmcli"):
+            print(f"  ✓ Elevated NetworkManager autoconnect-priority for '{ssid}' to 50")
+        print(f"  ✓ Requested Wi-Fi power save OFF on {wlan_iface}")
         print("\n\033[92m[READY] System is optimized for wireless-only calibration without Ethernet!\033[0m\n")
-    else:
-        print("💡 \033[1mHow Wi-Fi Only Mode Works:\033[0m")
-        print("  1. The Archer MR200's Wi-Fi Access Point radio remains RUNNING even when")
-        print("     cellular LTE frequency bands are switched or cell locked.")
-        print("  2. Local Wi-Fi ping/HTTP to 192.168.1.1 will NOT disconnect.")
-        print("  3. Only upstream internet traffic pauses for 5-15s during cell attach.")
-        print("  4. Run `tplink-cli wifi-guard --optimize` to prevent NetworkManager from")
-        print("     roaming to campus Wi-Fi or hotspot during calibration pauses.")
-        print("=" * 65 + "\n")
+        return
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "connected_ssid": ssid or "Unknown",
+            "default_gateway": gw or "Unknown",
+            "interface": wlan_iface,
+            "wifi_power_save": ps_status,
+            "autoconnect_priority": nm_priority,
+            "is_guarded": True
+        }, indent=2))
+        return
+
+    print("\n" + "=" * 65)
+    print("  \033[1mWI-FI ONLY OPERATION & LINK STABILITY GUARD\033[0m")
+    print("=" * 65)
+    print(f"Connected Wi-Fi SSID : \033[1m{ssid or 'Unknown'}\033[0m")
+    print(f"Default Gateway      : {gw or 'Unknown'}")
+    print(f"Wireless Interface   : {wlan_iface}")
+    print(f"Wi-Fi Power Save     : {ps_status}")
+    print(f"Autoconnect Priority : {nm_priority}")
+    print("-" * 65)
+    print("💡 \033[1mHow Wi-Fi Only Mode Works:\033[0m")
+    print("  1. The Archer MR200's Wi-Fi Access Point radio remains RUNNING even when")
+    print("     cellular LTE frequency bands are switched or cell locked.")
+    print("  2. Local Wi-Fi ping/HTTP to 192.168.1.1 will NOT disconnect.")
+    print("  3. Only upstream internet traffic pauses for 5-15s during cell attach.")
+    print("  4. Run `tplink-cli wifi-guard --optimize` to prevent NetworkManager from")
+    print("     roaming to campus Wi-Fi or hotspot during calibration pauses.")
+    print("=" * 65 + "\n")
 
 
 def cmd_repl(args: argparse.Namespace):
@@ -614,19 +746,41 @@ def cmd_reservation(args: argparse.Namespace):
             mac = getattr(args, "mac", None)
             ip = getattr(args, "ip", None)
             if not mac or not ip:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_PARAMS",
+                        "message": "Both mac_address and ip_address are required."
+                    }, indent=2))
+                    sys.exit(1)
                 print("\nUsage: tplink-cli reservation add <mac_address> <ip_address>")
                 print("Example: tplink-cli reservation add AA-BB-CC-DD-EE-FF 192.168.1.50\n")
                 return
             client.add_dhcp_reservation(mac, ip)
+            if getattr(args, "json", False):
+                print(json.dumps({"success": True, "action": "add", "mac": mac, "ip": ip}, indent=2))
+                return
             print(f"\033[92mReservation added: {mac} -> {ip}\033[0m")
+            return
         elif sub == "del":
             mac = getattr(args, "mac", None)
             if not mac:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_MAC",
+                        "message": "mac_address is required to delete reservation."
+                    }, indent=2))
+                    sys.exit(1)
                 print("\nUsage: tplink-cli reservation del <mac_address>")
                 print("Run 'tplink-cli reservation list' to view active reservations.\n")
                 return
             client.delete_dhcp_reservation(mac)
+            if getattr(args, "json", False):
+                print(json.dumps({"success": True, "action": "del", "mac": mac}, indent=2))
+                return
             print(f"\033[92mReservation deleted for MAC {mac}\033[0m")
+            return
 
 
 def cmd_data_limit(args: argparse.Namespace):
@@ -639,6 +793,13 @@ def cmd_data_limit(args: argparse.Namespace):
         if getattr(args, "limit", None) is not None:
             payment_day = getattr(args, "day", 1) or 1
             client.set_data_limit(enabled=True, limit_mb=args.limit, payment_day=payment_day)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "limit_mb": args.limit,
+                    "billing_day": payment_day
+                }, indent=2))
+                return
             print(f"\033[92mData limit set to {args.limit} MB (Billing reset day: {payment_day})\033[0m")
             return
 
@@ -671,6 +832,14 @@ def cmd_wifi(args: argparse.Namespace):
             band = "2.4GHz" if "2" in args.band else "5GHz"
             enabled = args.toggle in ("on", "enable")
             client.set_wifi_radio(band=band, enabled=enabled, ssid=getattr(args, "ssid", None))
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "band": band,
+                    "enabled": enabled,
+                    "ssid": getattr(args, "ssid", None)
+                }, indent=2))
+                return
             print(f"\033[92mWi-Fi {band} radio set to {'ON' if enabled else 'OFF'}\033[0m")
             return
 
@@ -703,6 +872,14 @@ def cmd_leds(args: argparse.Namespace):
             start = getattr(args, "start", "22:00") or "22:00"
             end = getattr(args, "end", "07:00") or "07:00"
             client.set_led_night_mode(enabled=enable, start_time=start, end_time=end)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "night_mode_enabled": enable,
+                    "start_time": start,
+                    "end_time": end
+                }, indent=2))
+                return
             print(f"\033[92mNight mode {'enabled' if enable else 'disabled'} (LEDs OFF {start} - {end})\033[0m")
             return
 
@@ -801,6 +978,15 @@ def cmd_band(args: argparse.Namespace):
             print("=" * 62 + "\n")
             return
 
+        if getattr(args, "json", False):
+            client.set_lte_band(target_band)
+            print(json.dumps({
+                "success": True,
+                "configured_band": target_band,
+                "message": "Cellular modem is retuning RF hardware"
+            }, indent=2))
+            return
+
         print(f"Locking hardware modem to band '{target_band}'...")
         client.set_lte_band(target_band)
     print(f"\033[92m✓ LTE band successfully configured to '{target_band}'.\033[0m")
@@ -874,6 +1060,15 @@ def cmd_guest_wifi(args: argparse.Namespace):
             action_desc = f"{'enabled' if is_en else 'disabled'}"
             if ssid:
                 action_desc += f", SSID set to '{ssid}'"
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "band": band,
+                    "enabled": is_en,
+                    "ssid": ssid,
+                    "allow_lan_access": allow_lan
+                }, indent=2))
+                return
             print(f"\033[92m✓ Guest Wi-Fi ({band}) successfully {action_desc}.\033[0m")
             return
 
@@ -921,21 +1116,49 @@ def cmd_port_forward(args: argparse.Namespace):
             ext_port = getattr(args, "ext_port", None)
             int_ip = getattr(args, "int_ip", None)
             if not name or not ext_port or not int_ip:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_PARAMS",
+                        "message": "name, ext_port, and int_ip are required."
+                    }, indent=2))
+                    sys.exit(1)
                 print("\nUsage: tplink-cli port-forward add <name> <ext_port> <int_ip> [int_port] [--proto TCP|UDP|ALL]")
                 print("Example: tplink-cli port-forward add web 8080 192.168.1.150 80 --proto TCP\n")
                 return
             int_port = getattr(args, "int_port", None) or ext_port
             proto = getattr(args, "proto", "ALL")
             client.add_port_forwarding(name=name, external_port=ext_port, internal_ip=int_ip, internal_port=int_port, protocol=proto)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "action": "add",
+                    "name": name,
+                    "external_port": ext_port,
+                    "internal_ip": int_ip,
+                    "internal_port": int_port,
+                    "protocol": proto
+                }, indent=2))
+                return
             print(f"\033[92m✓ Port forwarding rule '{name}' added: Port {ext_port} -> {int_ip}:{int_port} ({proto})\033[0m")
             return
         elif action == "del":
             stack = getattr(args, "stack", None)
             if not stack:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_STACK",
+                        "message": "Rule stack ID is required to delete port forwarding rule."
+                    }, indent=2))
+                    sys.exit(1)
                 print("\nUsage: tplink-cli port-forward del <rule_stack>")
                 print("Run 'tplink-cli port-forward list' to view active rule stacks.\n")
                 return
             client.del_port_forwarding(rule_stack=stack)
+            if getattr(args, "json", False):
+                print(json.dumps({"success": True, "action": "del", "stack": stack}, indent=2))
+                return
             print(f"\033[92m✓ Port forwarding rule at stack '{stack}' deleted.\033[0m")
             return
 
@@ -983,7 +1206,26 @@ def cmd_dmz(args: argparse.Namespace):
         if state or ip:
             is_en = state in ("on", "enable") if state else bool(ip)
             target_ip = ip or ""
+            if is_en and not target_ip:
+                if getattr(args, "json", False):
+                    print(json.dumps({
+                        "error": True,
+                        "code": "MISSING_DMZ_IP",
+                        "message": "Internal host IP address is required when enabling DMZ."
+                    }, indent=2))
+                else:
+                    print("\033[91mError: Internal host IP address is required when enabling DMZ.\033[0m")
+                    print("Usage: tplink-cli dmz on <ip_address>   (e.g. tplink-cli dmz on 192.168.1.100)")
+                sys.exit(1)
+
             client.set_dmz(enabled=is_en, ip_address=target_ip)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "enabled": is_en,
+                    "ip_address": target_ip
+                }, indent=2))
+                return
             print(f"\033[92m✓ DMZ Host {'enabled -> ' + target_ip if is_en else 'disabled'}.\033[0m")
             return
 
@@ -1017,6 +1259,12 @@ def cmd_upnp(args: argparse.Namespace):
         if toggle:
             is_en = toggle in ("on", "enable")
             client.set_upnp(enabled=is_en)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "upnp_enabled": is_en
+                }, indent=2))
+                return
             print(f"\033[92m✓ UPnP successfully {'enabled' if is_en else 'disabled'}.\033[0m")
             return
 
@@ -1077,6 +1325,17 @@ def cmd_reboot_schedule(args: argparse.Namespace):
                 except ValueError:
                     pass
             client.set_reboot_schedule(enabled=is_en, hours=hours, minutes=minutes, mode=mode, day_of_week=day)
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "enabled": is_en,
+                    "hours": hours,
+                    "minutes": minutes,
+                    "time": f"{hours:02d}:{minutes:02d}",
+                    "mode": mode,
+                    "day_of_week": day
+                }, indent=2))
+                return
             print(f"\033[92m✓ Automated reboot schedule {'enabled for ' + f'{hours:02d}:{minutes:02d} ({mode})' if is_en else 'disabled'}.\033[0m")
             return
 
@@ -1096,7 +1355,8 @@ def cmd_reboot_schedule(args: argparse.Namespace):
         st = "\033[92mENABLED\033[0m" if rs.enabled else "\033[90mDISABLED\033[0m"
         print(f"Status         : {st}")
         print(f"Scheduled Time : \033[1m{rs.hours:02d}:{rs.minutes:02d}\033[0m")
-        print(f"Frequency      : Every {rs.mode.capitalize()}" + (f" ({rs.day_name})" if rs.mode == "weekly" else ""))
+        freq_str = "Daily" if rs.mode == "daily" else f"Weekly (Every {rs.day_name})"
+        print(f"Frequency      : {freq_str}")
         print("-" * 55)
         print("To configure auto-reboot:")
         print("  tplink-cli reboot-schedule on --time 03:30 --mode daily")
@@ -1113,6 +1373,12 @@ def cmd_time(args: argparse.Namespace):
 
         if getattr(args, "sync", False):
             client.sync_time()
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "success": True,
+                    "ntp_sync_requested": True
+                }, indent=2))
+                return
             print("\033[92m✓ Router NTP synchronization requested.\033[0m")
             return
 
@@ -1280,6 +1546,7 @@ def cmd_calibrate(args: argparse.Namespace):
         bands=target_bands,
         watchdog_timeout=args.timeout,
         dry_run=args.dry_run,
+        echo_stdout=not args.web,
     )
 
     if args.web:
@@ -1294,7 +1561,28 @@ def cmd_calibrate(args: argparse.Namespace):
             print("\nShutting down dashboard...")
             server.shutdown()
     else:
-        calibrator.run_sweep()
+        results = calibrator.run_sweep()
+        if getattr(args, "json", False):
+            print(json.dumps(results, indent=2))
+            return
+        rec = results.get("recommendation")
+        print("\n" + "=" * 65)
+        print("  \033[1mAUTONOMOUS RF BAND CALIBRATION COMPLETE\033[0m")
+        print("=" * 65)
+        if rec:
+            print(f"Recommended LTE Band  : \033[92m\033[1mBand {rec.get('band')} ({rec.get('band_name', '')})\033[0m")
+            print(f"Confidence Score      : {rec.get('score', 0):.1f} / 100")
+            print(f"Expected Performance  : {rec.get('reason', '')}")
+        print("-" * 65)
+        print(f"{'BAND':<8} {'FREQ':<10} {'PING (ms)':<12} {'LOSS':<8} {'MTU':<6} {'SCORE'}")
+        print("-" * 65)
+        for b in results.get("bands_evaluated", []):
+            p_ms = f"{b.get('ping_avg_ms', 0):.1f}" if b.get('ping_avg_ms') else "N/A"
+            loss = f"{b.get('packet_loss_pct', 0):.0f}%"
+            mtu = str(b.get("path_mtu") or "1500")
+            sc = f"{b.get('score', 0):.1f}"
+            print(f"{'Band ' + str(b.get('band')):<8} {b.get('frequency', ''):<10} {p_ms:<12} {loss:<8} {mtu:<6} {sc}")
+        print("=" * 65 + "\n")
 
 
 def build_parser() -> argparse.ArgumentParser:
