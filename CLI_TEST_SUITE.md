@@ -6,19 +6,31 @@
 
 ---
 
-## Quick Reference / Global Modes
+## Quick Reference / Global UI & Theme Modes
 
 ```bash
-# 1. Default Modern UI (Obsidian-Style ASCII & Categorized View)
+# 1. Full-Screen Interactive TUI (↑/↓ Scroll • ←/→ Tabs • Space [✔] Select • Enter Run)
 tplink-cli
+tplink-cli tui
 
-# 2. Modern Help Screen
+# 2. Monochrome Black & White Theme Mode (TUI, Logo & All Command Outputs)
+tplink-cli --mono
+tplink-cli --mono status
+tplink-cli --mono --help
+
+# 3. Inline Interactive Selectors (Arrow Keys + Spacebar [✔] + Enter)
+tplink-cli band -i
+tplink-cli calibrate -i --no-web --dry-run
+tplink-cli ipv6 -i
+
+# 4. Modern Help Catalog with Half-Block TP-Link Pixel Logo
 tplink-cli --help
 
-# 3. Classic / Legacy Argparse Help Screen
+# 5. Classic / Legacy Argparse Help & Plain-ASCII Output Mode
 tplink-cli --legacy
+tplink-cli --legacy status
 
-# 4. Interactive Command REPL Console (Tab Auto-complete & History)
+# 6. Persistent Single-Session Interactive REPL Console
 tplink-cli repl
 ```
 
