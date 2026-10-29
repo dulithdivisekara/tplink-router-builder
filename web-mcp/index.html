@@ -46,8 +46,15 @@
       color: #0F172A;
     }
 
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none !important;
+      scrollbar-width: none !important;
+    }
   </style>
 </head>
 <body class="min-h-screen font-sans antialiased selection:bg-purple-500/30 selection:text-white transition-colors duration-200 overflow-x-hidden">
@@ -131,8 +138,8 @@
 
         <!-- Stdio Run Snippet Box -->
         <div class="max-w-xl mx-auto mb-10 w-full px-2 sm:px-0">
-          <div class="relative bg-white dark:bg-slate-900/90 rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between border border-slate-200 dark:border-slate-800 shadow-sm gap-2 sm:gap-0">
-            <div class="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 overflow-x-auto text-left py-1">
+          <div class="relative bg-white dark:bg-[#0c121e] rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between border border-slate-200 dark:border-slate-800 shadow-sm gap-2 sm:gap-0 hover:dark:border-teal-500/30 transition-colors">
+            <div class="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 overflow-x-auto no-scrollbar text-left py-1">
               <span class="text-purple-600 dark:text-purple-400 font-sans select-none font-bold">$</span>
               <code id="hero-cmd" class="font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">npx -y @dulith/tplink-mcp</code>
             </div>
@@ -752,7 +759,7 @@
         </div>
 
         <div class="relative bg-slate-900 rounded-xl p-4 font-mono text-xs sm:text-sm text-slate-200 border border-slate-800">
-          <pre id="config-snippet" class="overflow-x-auto pr-16 leading-relaxed">{
+          <pre id="config-snippet" class="overflow-x-auto no-scrollbar pr-16 leading-relaxed">{
   "mcpServers": {
     "tplink-router": {
       "command": "npx",

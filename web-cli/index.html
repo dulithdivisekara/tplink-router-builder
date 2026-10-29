@@ -42,8 +42,15 @@
       color: #0F172A;
     }
 
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none !important;
+      scrollbar-width: none !important;
+    }
     .terminal-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .terminal-scrollbar::-webkit-scrollbar-track { background: #090D16; }
     .terminal-scrollbar::-webkit-scrollbar-thumb { background: #273549; border-radius: 3px; }
@@ -123,8 +130,8 @@
 
         <!-- Primary Shell Command Box -->
         <div class="max-w-xl mx-auto mb-10 w-full px-2 sm:px-0">
-          <div class="relative bg-white dark:bg-slate-900/90 rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between border border-slate-200 dark:border-slate-800 shadow-sm gap-2 sm:gap-0">
-            <div class="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 overflow-x-auto text-left py-1">
+          <div class="relative bg-white dark:bg-[#0c121e] rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between border border-slate-200 dark:border-slate-800 shadow-sm gap-2 sm:gap-0 hover:dark:border-teal-500/30 transition-colors">
+            <div class="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 overflow-x-auto no-scrollbar text-left py-1">
               <span class="text-teal-600 dark:text-tplink-cyan font-sans select-none font-bold">$</span>
               <code id="hero-cmd" class="font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">curl -fsSL https://tp-link-cli.dulith.me/install.sh | bash</code>
             </div>
@@ -157,13 +164,15 @@
       </div>
 
       <!-- Command Selector Tabs -->
-      <div class="flex items-center sm:justify-center gap-2 mb-4 overflow-x-auto no-scrollbar pb-2 px-1">
-        <button onclick="runCommand('status')" id="tab-status" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300">tplink-cli status</button>
-        <button onclick="runCommand('signal')" id="tab-signal" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">tplink-cli signal</button>
-        <button onclick="runCommand('cell')" id="tab-cell" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">tplink-cli cell-lock</button>
-        <button onclick="runCommand('band')" id="tab-band" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">tplink-cli band 3</button>
-        <button onclick="runCommand('optimize')" id="tab-optimize" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">tplink-cli optimize-network</button>
-        <button onclick="runCommand('repl')" id="tab-repl" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">tplink-cli repl</button>
+      <div class="overflow-x-auto no-scrollbar pb-3 px-2">
+        <div class="flex items-center sm:justify-center gap-2 min-w-max mx-auto px-2">
+          <button onclick="runCommand('status')" id="tab-status" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-tplink-teal/20 text-tplink-teal dark:text-tplink-cyan border border-tplink-teal/40 transition-colors">tplink-cli status</button>
+          <button onclick="runCommand('signal')" id="tab-signal" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/5 transition-colors">tplink-cli signal</button>
+          <button onclick="runCommand('cell')" id="tab-cell" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/5 transition-colors">tplink-cli cell-lock</button>
+          <button onclick="runCommand('band')" id="tab-band" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/5 transition-colors">tplink-cli band 3</button>
+          <button onclick="runCommand('optimize')" id="tab-optimize" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/5 transition-colors">tplink-cli optimize-network</button>
+          <button onclick="runCommand('repl')" id="tab-repl" class="cmd-tab shrink-0 px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:bg-black/10 dark:hover:bg-white/10 border border-black/5 dark:border-white/5 transition-colors">tplink-cli repl</button>
+        </div>
       </div>
 
       <!-- Terminal Window Box -->
@@ -309,7 +318,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Show full router & cellular telemetry</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="signal" data-cat="Cellular">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -317,7 +326,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Show RF signal metrics (RSRP, RSRQ, SNR)</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="cell-lock" data-cat="Cellular">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -325,7 +334,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or configure LTE Cell Lock</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--enable</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--disable</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--earfcn</span><span class="text-xs font-mono text-slate-500">+1</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--enable</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--disable</span><span class="text-xs font-mono text-slate-500">+2</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="dns" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -333,7 +342,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Manage router DNS settings</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><action></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><action></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="ipv6" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -341,7 +350,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Toggle IPv6 stack (on/off)</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><state></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><state></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="ussd" data-cat="Cellular">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -349,7 +358,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Execute USSD query (e.g. *344# or *123#)</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><code></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><code></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="sms" data-cat="SMS">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -357,7 +366,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-300">SMS</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Read or send SMS</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--limit</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--folder</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--limit</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--folder</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="reboot" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -365,7 +374,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Reboot the router</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">-y</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--yes</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">-y</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--yes</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="profile" data-cat="Diagnostics">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -373,7 +382,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Check active network profile and gateway safety</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="config" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -381,7 +390,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Manage stored credentials</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="cookie" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -389,7 +398,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or save browser session cookie</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><cookie_val></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><cookie_val></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="wifi-guard" data-cat="Wi-Fi">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -397,7 +406,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Verify and optimize Wi-Fi link stability (no Ethernet needed)</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--optimize</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--fix</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--optimize</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--fix</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="clients" data-cat="Diagnostics">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -405,7 +414,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">List connected LAN devices (IP, MAC, Hostname)</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="reservation" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -413,7 +422,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Manage DHCP static IP reservations</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="data-limit" data-cat="Cellular">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -421,7 +430,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or set monthly cellular data cap</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--limit</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--day</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--limit</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--day</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="wifi" data-cat="Wi-Fi">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -429,7 +438,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or configure Wi-Fi radios (2.4GHz / 5GHz)</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--band</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--toggle</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--ssid</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--band</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--toggle</span><span class="text-xs font-mono text-slate-500">+1</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="leds" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -437,7 +446,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Control router LEDs and Night Mode schedule</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--night-mode</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--start</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--end</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--night-mode</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--start</span><span class="text-xs font-mono text-slate-500">+1</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="diag" data-cat="Diagnostics">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -445,7 +454,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Run router WAN and internet diagnostic test</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="band" data-cat="Cellular">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -453,7 +462,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or lock LTE Band (e.g. 3, 8, 40, auto)</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><band></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><band></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="calibrate" data-cat="Cellular">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -461,7 +470,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Autonomous RF band calibration & Live Web UI</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--web</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--no-web</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--port</span><span class="text-xs font-mono text-slate-500">+3</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--web</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--no-web</span><span class="text-xs font-mono text-slate-500">+4</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="logs" data-cat="Diagnostics">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -469,7 +478,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Read or clear system & cellular event logs</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--lines</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">-n</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--module</span><span class="text-xs font-mono text-slate-500">+4</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--lines</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">-n</span><span class="text-xs font-mono text-slate-500">+5</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="guest-wifi" data-cat="Wi-Fi">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -477,7 +486,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or configure dual-band Guest Wi-Fi</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--toggle</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--band</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--ssid</span><span class="text-xs font-mono text-slate-500">+4</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--toggle</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--band</span><span class="text-xs font-mono text-slate-500">+5</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="port-forward" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -485,7 +494,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Manage NAT virtual server port forwarding rules</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="dmz" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -493,7 +502,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View or configure DMZ host forwarding</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><state></span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><ip></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><state></span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><ip></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="upnp" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -501,7 +510,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Manage Universal Plug and Play (UPnP)</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><toggle></span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><toggle></span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="reboot-schedule" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -509,7 +518,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Manage automated periodic reboot schedule</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><toggle></span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--time</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--mode</span><span class="text-xs font-mono text-slate-500">+1</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300"><toggle></span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--time</span><span class="text-xs font-mono text-slate-500">+2</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="time" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -517,7 +526,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View router system clock or trigger NTP sync</p>
-          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--sync</span></div>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--sync</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="op-mode" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -525,7 +534,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View router operation mode (3G/4G vs Wireless)</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="ddns" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -533,7 +542,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">View Dynamic DNS (DDNS) providers and status</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="fw-check" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -541,7 +550,7 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Check for official TP-Link online firmware updates</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="repl" data-cat="System">
           <div class="flex items-center justify-between mb-2.5 gap-2">
@@ -549,7 +558,15 @@
             <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Launch interactive REPL console</p>
-          
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 cmd-card group transition-all duration-150" data-cmd="legacy" data-cat="System">
+          <div class="flex items-center justify-between mb-2.5 gap-2">
+            <code class="text-teal-700 dark:text-tplink-cyan text-sm font-bold font-mono group-hover:underline break-all">tplink-cli legacy</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">Display classic standard argparse help layout</p>
+          <div class="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-slate-200 dark:border-slate-800"><span class="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-mono text-slate-700 dark:text-slate-300">--legacy</span></div>
         </div>
         <!-- COMMANDS_GRID_END -->
       </div>
@@ -577,7 +594,7 @@
         </div>
 
         <div id="install-code-box" class="relative bg-slate-900 rounded-xl p-4 font-mono text-xs sm:text-sm text-slate-200 border border-slate-800">
-          <pre id="install-snippet" class="overflow-x-auto pr-16 leading-relaxed">curl -fsSL https://tp-link-cli.dulith.me/install.sh | bash</pre>
+          <pre id="install-snippet" class="overflow-x-auto no-scrollbar pr-16 leading-relaxed">curl -fsSL https://tp-link-cli.dulith.me/install.sh | bash</pre>
           <button onclick="copyInstallSnippet()" id="install-copy-btn" class="absolute top-3 right-3 px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white text-xs font-mono transition-colors">
             Copy
           </button>
