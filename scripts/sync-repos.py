@@ -138,6 +138,14 @@ def sync_cli_web():
     # Run build script to validate schemas and pre-render
     print("Running build script in tp-link-cli-web...")
     run_cmd(["python3", "scripts/build.py"], cwd=CLI_WEB_DIR)
+
+    # Snapshot into builder hub
+    builder_web_cli = BUILDER_DIR / "web-cli"
+    if builder_web_cli.exists() and (CLI_WEB_DIR / "index.html").exists():
+        shutil.copy2(CLI_WEB_DIR / "index.html", builder_web_cli / "index.html")
+        if (CLI_WEB_DIR / "install.sh").exists():
+            shutil.copy2(CLI_WEB_DIR / "install.sh", builder_web_cli / "install.sh")
+
     print("\033[92m[✓] tp-link-cli-web sync and pre-rendering PASSED.\033[0m")
     return True
 
@@ -153,6 +161,12 @@ def sync_mcp_web():
     # Run build script to validate schemas and pre-render
     print("Running build script in tp-link-mcp-web...")
     run_cmd(["python3", "scripts/build.py"], cwd=MCP_WEB_DIR)
+
+    # Snapshot into builder hub
+    builder_web_mcp = BUILDER_DIR / "web-mcp"
+    if builder_web_mcp.exists() and (MCP_WEB_DIR / "index.html").exists():
+        shutil.copy2(MCP_WEB_DIR / "index.html", builder_web_mcp / "index.html")
+
     print("\033[92m[✓] tp-link-mcp-web sync and pre-rendering PASSED.\033[0m")
     return True
 

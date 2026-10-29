@@ -1,421 +1,827 @@
 <!DOCTYPE html>
 <html lang="en" class="dark scroll-smooth">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>TP-Link Router MCP Server · Official Specification & Documentation</title>
-  <meta name="description" content="Universal Model Context Protocol (MCP 2.x) Server for TP-Link 4G/LTE Gateways and Broadband Routers. Built for Google Antigravity, Claude Desktop, and Cursor." />
-  <link rel="icon" type="image/svg+xml" href="https://mintcdn.com/mcp/2BMHnlNW5OqOohXZ/favicon.svg" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TP-Link MCP | Official Model Context Protocol Server for 4G/5G Routers</title>
+  <meta name="description" content="Universal Model Context Protocol (MCP) server for TP-Link 4G/5G routers. Empowers AI agents with 39 carrier-grade tools to diagnose RF metrics, optimize cellular bands, clamp MTU, and inspect SMS.">
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
-          colors: {
-            brand: {
-              teal: '#00C4B4',
-              cyan: '#00A499',
-              dark: '#070A0F',
-              card: '#0D131F',
-              border: 'rgba(255, 255, 255, 0.08)'
-            }
-          },
           fontFamily: {
-            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-            mono: ['JetBrains Mono', 'Menlo', 'Consolas', 'monospace']
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['"Fira Code"', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          },
+          colors: {
+            tplink: {
+              teal: '#00A499',
+              darkteal: '#007A72',
+              cyan: '#00C4B4',
+              accent: '#059669'
+            },
+            mcp: {
+              purple: '#7C3AED',
+              dark: '#0D1117'
+            }
           }
         }
       }
     }
   </script>
   <style>
-    body {
-      background-color: #070A0F;
-      color: #E2E8F0;
-      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* Dark Theme */
+    html.dark body {
+      background-color: #0A0D14;
+      color: #F1F5F9;
     }
-    .glass-card {
-      background: rgba(13, 19, 31, 0.7);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    /* Light Theme */
+    html:not(.dark) body {
+      background-color: #F8FAFC;
+      color: #0F172A;
     }
-    .glass-card:hover {
-      border-color: rgba(0, 196, 180, 0.35);
-    }
-    .glow-bg {
-      background: radial-gradient(circle at 50% 0%, rgba(0, 196, 180, 0.12) 0%, transparent 60%);
-    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="min-h-screen antialiased flex flex-col selection:bg-brand-teal selection:text-black">
+<body class="min-h-screen font-sans antialiased selection:bg-purple-500/30 selection:text-white transition-colors duration-200 overflow-x-hidden">
 
-  <!-- Glow effect -->
-  <div class="fixed inset-0 glow-bg pointer-events-none z-0"></div>
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Dual Official Logos: TP-Link + MCP -->
+      <a href="/" class="flex items-center gap-2.5 sm:gap-3 group shrink-0">
+        <div class="flex items-center gap-1.5 shrink-0">
+          <div class="w-8 h-8 rounded-lg bg-teal-600 dark:bg-tplink-teal flex items-center justify-center text-white shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 11a9 9 0 0 1 9 9"></path>
+              <path d="M4 4a16 16 0 0 1 16 16"></path>
+              <circle cx="5" cy="19" r="1" fill="currentColor"></circle>
+            </svg>
+          </div>
+          <span class="text-slate-400 font-sans text-xs select-none">+</span>
+          <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <span class="font-extrabold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white">TP-Link Router</span>
+            <span class="px-1.5 py-0.5 text-xs font-sans font-bold rounded bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300">MCP</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-sans tracking-wide">39 Tools • Model Context Protocol</p>
+        </div>
+      </a>
 
-  <!-- Navigation -->
-  <header class="sticky top-0 z-50 glass-card border-b border-brand-border">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center space-x-4">
-        <a href="#" class="flex items-center space-x-3">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/TPLINK_Logo_2.svg" alt="TP-Link" class="h-6 w-auto" />
-          <span class="text-zinc-500 font-mono text-sm">/</span>
-          <img src="https://mintcdn.com/mcp/2BMHnlNW5OqOohXZ/logo/dark.svg" alt="Model Context Protocol" class="h-6 w-auto" />
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-700 dark:text-slate-300">
+        <a href="#quickstart" class="hover:text-teal-600 dark:hover:text-white transition-colors">Install</a>
+        <a href="#tools-catalog" class="hover:text-teal-600 dark:hover:text-white transition-colors">Tools (39)</a>
+        <a href="#clients" class="hover:text-teal-600 dark:hover:text-white transition-colors">Client Setup</a>
+        <a href="https://tp-link-cli.dulith.me" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-sans font-medium text-teal-700 dark:text-teal-300 transition-all">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          Switch to CLI
         </a>
-        <span class="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-brand-teal/10 text-brand-teal border border-brand-teal/20">
-          MCP 2.x Compliant
-        </span>
-      </div>
-
-      <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-zinc-400">
-        <a href="#quickstart" class="hover:text-white transition">Quickstart</a>
-        <a href="#tools" class="hover:text-white transition">Tools Catalog</a>
-        <a href="#architecture" class="hover:text-white transition">Architecture</a>
-        <a href="#origin" class="hover:text-white transition">Origin Story</a>
-        <a href="https://tp-link-cli.dulith.me" class="hover:text-white transition">CLI Tool &rarr;</a>
       </nav>
 
-      <div class="flex items-center space-x-3">
-        <a href="https://github.com/dulithdivisekara/tplink-mcp" target="_blank" rel="noopener noreferrer" class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-white border border-brand-border transition">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+      <!-- Right Actions (Theme Switcher + Connect) -->
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <!-- Theme Toggle -->
+        <button onclick="toggleTheme()" id="theme-toggle-btn" title="Toggle Theme" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all">
+          <svg id="theme-sun" class="w-4 h-4 hidden dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg id="theme-moon" class="w-4 h-4 block dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+
+        <!-- GitHub Repo Link -->
+        <a href="https://github.com/dulithdivisekara/tplink-mcp" target="_blank" rel="noopener noreferrer" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-sans font-medium transition-colors">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
           <span>GitHub</span>
+        </a>
+
+        <!-- Connect Action Button -->
+        <a href="#quickstart" class="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm transition-all shrink-0">
+          Connect MCP
         </a>
       </div>
     </div>
   </header>
 
   <!-- Hero Section -->
-  <main class="flex-grow z-10">
-    <section class="relative pt-20 pb-16 px-4 sm:px-6 lg:px-8 text-center max-w-5xl mx-auto">
-      <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium bg-brand-teal/10 text-brand-teal border border-brand-teal/20 mb-6">
-        <span>✨ Anthropic Model Context Protocol 2.x</span>
-        <span>•</span>
-        <span>Single-Admin Concurrency Safe</span>
-      </div>
+  <section id="quickstart" class="relative pt-12 sm:pt-16 pb-16 sm:pb-20 overflow-hidden scroll-mt-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div class="text-center max-w-3xl mx-auto">
+        <!-- Headline -->
+        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-tight">
+          Cellular Router MCP<br class="hidden sm:inline">
+          <span class="text-teal-600 dark:text-tplink-cyan">for AI Agents</span>
+        </h1>
 
-      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6">
-        Connect AI Copilots Directly to Your <span class="bg-gradient-to-r from-teal-400 to-cyan-300 bg-clip-text text-transparent">TP-Link Router</span>
-      </h1>
+        <!-- Subheadline -->
+        <p class="text-base sm:text-lg text-slate-700 dark:text-slate-300 mb-8 leading-relaxed max-w-prose mx-auto">
+          Expose 39 carrier-grade tools to Claude, Antigravity, and Cursor. Let autonomous agents monitor RSRP signal drops, lock high-speed LTE bands, clamp MTU to 1420 to prevent packet fragmentation, and read SMS verification codes.
+        </p>
 
-      <p class="text-lg sm:text-xl text-zinc-400 max-w-3xl mx-auto mb-10 leading-relaxed">
-        The official Model Context Protocol (MCP) server for TP-Link 4G/LTE gateways and broadband routers. Exposes 18 typed tools to <strong>Google Antigravity</strong>, <strong>Claude Desktop</strong>, and <strong>Cursor</strong> with atomic session leasing, live RF signal telemetry, and disconnection safeguards.
-      </p>
-
-      <!-- Command One-Liner Box -->
-      <div class="max-w-xl mx-auto glass-card rounded-xl p-3 flex items-center justify-between font-mono text-sm shadow-2xl mb-12 border border-brand-border">
-        <div class="flex items-center space-x-3 overflow-hidden text-zinc-300 pl-2">
-          <span class="text-brand-teal select-none">$</span>
-          <span class="truncate">npx -y tplink-mcp</span>
-        </div>
-        <button onclick="navigator.clipboard.writeText('npx -y tplink-mcp'); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 2000)" class="px-3.5 py-1.5 rounded-lg bg-brand-teal text-black font-semibold text-xs hover:bg-teal-300 transition shrink-0 ml-2">
-          Copy
-        </button>
-      </div>
-
-      <!-- Quick Feature Pill Badges -->
-      <div class="flex flex-wrap items-center justify-center gap-3 text-xs text-zinc-400 font-medium">
-        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">📡 3GPP RF Signal (RSRP/RSRQ/SNR)</span>
-        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">🔒 Single-Admin Lock Avoidance</span>
-        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">🛡️ Multi-Environment Network Guard</span>
-        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">👥 Connected LAN Devices</span>
-        <span class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-brand-border">⚡ Disconnection Safeguards (confirm=True)</span>
-      </div>
-    </section>
-
-    <!-- Quickstart / Config Tabs -->
-    <section id="quickstart" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div class="text-center mb-10">
-        <h2 class="text-3xl font-bold text-white mb-3">1-Minute AI Copilot Integration</h2>
-        <p class="text-zinc-400">Configure your favorite AI agent with the standard MCP stdio configuration.</p>
-      </div>
-
-      <div class="glass-card rounded-2xl overflow-hidden border border-brand-border">
-        <!-- Tab Buttons -->
-        <div class="flex border-b border-brand-border bg-black/40 px-4 pt-3 space-x-2 text-xs font-mono">
-          <button onclick="setTab('claude')" id="tab-claude" class="px-4 py-2 rounded-t-lg font-semibold border-b-2 border-brand-teal text-white bg-zinc-800/50">Claude Desktop</button>
-          <button onclick="setTab('antigravity')" id="tab-antigravity" class="px-4 py-2 rounded-t-lg font-semibold border-b-2 border-transparent text-zinc-400 hover:text-white">Google Antigravity / Cursor</button>
-          <button onclick="setTab('docker')" id="tab-docker" class="px-4 py-2 rounded-t-lg font-semibold border-b-2 border-transparent text-zinc-400 hover:text-white">Docker (ghcr.io)</button>
-        </div>
-
-        <!-- Tab Contents -->
-        <div class="p-6 font-mono text-sm bg-black/60 overflow-x-auto text-zinc-300">
-          <div id="content-claude">
-            <p class="text-xs text-zinc-500 mb-2">// Edit ~/Library/Application Support/Claude/claude_desktop_config.json (macOS) or %APPDATA%\Claude\claude_desktop_config.json (Windows)</p>
-            <pre class="text-emerald-400">{
-  <span class="text-zinc-400">"mcpServers"</span>: {
-    <span class="text-brand-teal">"tplink-mcp"</span>: {
-      <span class="text-zinc-400">"command"</span>: <span class="text-amber-300">"npx"</span>,
-      <span class="text-zinc-400">"args"</span>: [<span class="text-amber-300">"-y"</span>, <span class="text-amber-300">"tplink-mcp"</span>],
-      <span class="text-zinc-400">"env"</span>: {
-        <span class="text-zinc-400">"TPLINK_ROUTER_IP"</span>: <span class="text-amber-300">"http://192.168.1.1"</span>,
-        <span class="text-zinc-400">"TPLINK_PASSWORD"</span>: <span class="text-amber-300">"your_admin_password"</span>
-      }
-    }
-  }
-}</pre>
+        <!-- Stdio Run Snippet Box -->
+        <div class="max-w-xl mx-auto mb-10 w-full px-2 sm:px-0">
+          <div class="relative bg-white dark:bg-slate-900/90 rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between border border-slate-200 dark:border-slate-800 shadow-sm gap-2 sm:gap-0">
+            <div class="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-3 overflow-x-auto text-left py-1">
+              <span class="text-purple-600 dark:text-purple-400 font-sans select-none font-bold">$</span>
+              <code id="hero-cmd" class="font-mono text-xs sm:text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">npx -y @dulith/tplink-mcp</code>
+            </div>
+            <button onclick="copyHeroCmd()" id="hero-copy-btn" class="w-full sm:w-auto sm:ml-3 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white text-xs font-sans font-medium transition-all flex items-center justify-center gap-1.5 shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy</span>
+            </button>
           </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mt-2 font-sans">Stdio protocol supported natively across Claude Desktop, Antigravity, Cursor, and Zed</p>
+        </div>
 
-          <div id="content-antigravity" class="hidden">
-            <p class="text-xs text-zinc-500 mb-2">// In Antigravity MCP settings or .cursor/mcp.json</p>
-            <pre class="text-emerald-400">{
-  <span class="text-zinc-400">"mcpServers"</span>: {
-    <span class="text-brand-teal">"tplink-mcp"</span>: {
-      <span class="text-zinc-400">"command"</span>: <span class="text-amber-300">"python3"</span>,
-      <span class="text-zinc-400">"args"</span>: [<span class="text-amber-300">"-m"</span>, <span class="text-amber-300">"tplink_mcp.server"</span>],
-      <span class="text-zinc-400">"env"</span>: {
-        <span class="text-zinc-400">"TPLINK_ROUTER_IP"</span>: <span class="text-amber-300">"http://192.168.1.1"</span>,
-        <span class="text-zinc-400">"TPLINK_PASSWORD"</span>: <span class="text-amber-300">"your_admin_password"</span>
-      }
-    }
-  }
-}</pre>
-          </div>
-
-          <div id="content-docker" class="hidden">
-            <p class="text-xs text-zinc-500 mb-2">// Standalone zero-install container from GitHub Packages ($0 cost)</p>
-            <pre class="text-emerald-400">docker run -i --rm --network host \
-  -e TPLINK_ROUTER_IP="http://192.168.1.1" \
-  -e TPLINK_PASSWORD="your_admin_password" \
-  ghcr.io/dulithdivisekara/tplink-mcp:latest</pre>
-          </div>
+        <!-- Ecosystem badges -->
+        <div class="flex flex-wrap justify-center items-center gap-2 text-xs font-sans text-slate-600 dark:text-slate-400">
+          <span class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800">stdio transport</span>
+          <span class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800">json-rpc 2.0</span>
+          <span class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800">python 3.10+</span>
+          <span class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800">docker / ghcr.io</span>
+          <span class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800">39 tools</span>
         </div>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Architecture Section -->
-    <section id="architecture" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div class="text-center mb-12">
-        <h2 class="text-3xl font-bold text-white mb-3">Enterprise Agentic Architecture</h2>
-        <p class="text-zinc-400 max-w-2xl mx-auto">Designed to resolve the single-admin lock and prevent autonomous AI agents from ever disconnecting themselves.</p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="glass-card rounded-2xl p-6">
-          <div class="h-10 w-10 rounded-xl bg-teal-500/10 text-brand-teal flex items-center justify-center font-bold text-lg mb-4">1</div>
-          <h3 class="text-lg font-semibold text-white mb-2">Atomic Session Leasing</h3>
-          <p class="text-sm text-zinc-400 leading-relaxed">
-            TP-Link gateways enforce a single active admin lock. The <code>SafeSession</code> context manager authenticates, executes the tool, and calls <code>logout()</code> immediately so your browser UI is never kicked.
-          </p>
-        </div>
-
-        <div class="glass-card rounded-2xl p-6">
-          <div class="h-10 w-10 rounded-xl bg-teal-500/10 text-brand-teal flex items-center justify-center font-bold text-lg mb-4">2</div>
-          <h3 class="text-lg font-semibold text-white mb-2">Network Guard Protection</h3>
-          <p class="text-sm text-zinc-400 leading-relaxed">
-            Automatically inspects default gateways and Wi-Fi SSIDs. Prevents AI agents from sending router commands if your laptop is currently connected to university Wi-Fi or a mobile hotspot.
-          </p>
-        </div>
-
-        <div class="glass-card rounded-2xl p-6">
-          <div class="h-10 w-10 rounded-xl bg-teal-500/10 text-brand-teal flex items-center justify-center font-bold text-lg mb-4">3</div>
-          <h3 class="text-lg font-semibold text-white mb-2">Disconnection Safeguards</h3>
-          <p class="text-sm text-zinc-400 leading-relaxed">
-            Disruptive actions like <code>router_reboot</code>, <code>router_set_cell_lock</code>, or band switching strictly require <code>confirm=True</code> to prevent an autonomous agent from severing its own remote session.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- 18 Typed Tools Catalog -->
-    <section id="tools" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div class="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+  <!-- 39 Tools Interactive Catalog -->
+  <section id="tools-catalog" class="py-16 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-200 dark:border-slate-800 scroll-mt-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
-          <h2 class="text-3xl font-bold text-white mb-2">18 Typed MCP Tools</h2>
-          <p class="text-zinc-400">Strictly typed schemas following official MCP guidelines.</p>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">39 Carrier-Grade MCP Tools</h2>
+          <p class="text-slate-600 dark:text-slate-400 text-sm mt-1">Click any tool to inspect its JSON Schema and sample LLM prompt</p>
         </div>
-        <div class="flex items-center space-x-2">
-          <input type="text" id="toolSearch" oninput="filterTools()" placeholder="Search tools (e.g. signal, sms, reboot)..." class="px-4 py-2 rounded-xl bg-black/50 border border-brand-border text-sm text-white focus:outline-none focus:border-brand-teal w-64" />
+
+        <div class="w-full sm:w-auto">
+          <input type="text" id="tool-search" oninput="filterTools()" placeholder="Filter 39 tools (e.g. signal, band, sms)..." class="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 text-sm focus:outline-none focus:border-teal-600 w-full sm:w-72 shadow-sm">
         </div>
       </div>
 
-      <div class="glass-card rounded-2xl overflow-hidden border border-brand-border">
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm" id="toolsTable">
-            <thead class="bg-black/60 text-xs uppercase font-mono text-zinc-400 border-b border-brand-border">
-              <tr>
-                <th class="py-3.5 px-4">Tool Name</th>
-                <th class="py-3.5 px-4">Type</th>
-                <th class="py-3.5 px-4">Safety Guard</th>
-                <th class="py-3.5 px-4">Functionality</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-brand-border text-zinc-300 font-mono text-xs">
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_status</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Full device telemetry, cellular link state, hardware and firmware versions.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_rf_signal</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Live 3GPP RSRP, RSRQ, SNR, signal bars, EARFCN, and PCI metrics.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_cell_lock</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Locks modem to specific tower EARFCN and PCI to prevent cell hopping.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_lte_band</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Locks modem to specific LTE band (e.g. Band 3 1800MHz or Band 8 900MHz).</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_connected_clients</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Queries active DHCP table: hostnames, IP addresses, MAC addresses, and lease time.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_manage_dhcp_reservation</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Adds, deletes, or lists static DHCP IP address reservations by MAC.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_data_limit</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Returns monthly cellular quota, warning alert threshold, and billing reset date.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_data_limit</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Configures monthly cellular data quota in MB and billing cycle reset day (1-31).</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_wifi_networks</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Returns status, SSIDs, channels, and operational state of 2.4 GHz and 5 GHz radios.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_wifi_radio</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-amber-400 font-semibold">confirm=True</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Enables or disables Wi-Fi radio (2.4GHz / 5GHz) or renames active SSID.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_get_led_status</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Queries physical front-panel LEDs and Night Mode schedule state.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_led_night_mode</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Configures night mode to turn off router LEDs automatically during sleeping hours.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_run_diagnostic</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Exec</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Runs router-side WAN, physical cellular link, and NCSI internet reachability test.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_set_dns</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Configures custom WAN DNS resolvers (e.g. 8.8.8.8, 8.8.4.4).</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_toggle_ipv6</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Write</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Enables or disables IPv6 stack to mitigate dual-stack resolution delays.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_run_ussd</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Exec</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Sends interactive USSD balance code (e.g. *344#, *123#) and parses response.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_read_sms</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400">Read</span></td>
-                <td class="py-3 px-4 text-emerald-400">Safe</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Reads incoming or sent SMS messages from router SIM inbox.</td>
-              </tr>
-              <tr class="hover:bg-white/[0.02]">
-                <td class="py-3 px-4 font-semibold text-brand-teal">router_reboot</td>
-                <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-red-500/10 text-red-400">Exec</span></td>
-                <td class="py-3 px-4 text-red-400 font-semibold">confirm=True</td>
-                <td class="py-3 px-4 font-sans text-zinc-400">Initiates graceful hardware reboot of the router.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <!-- Category Filter Pills -->
+      <div class="flex flex-wrap items-center gap-2 mb-8">
+        <button onclick="setCategory('all')" data-cat="all" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-semibold bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-300">All Tools (39)</button>
+        <button onclick="setCategory('Diagnostics')" data-cat="Diagnostics" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">Diagnostics (6)</button>
+        <button onclick="setCategory('Cellular')" data-cat="Cellular" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">Cellular RF (6)</button>
+        <button onclick="setCategory('SMS')" data-cat="SMS" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">SMS & USSD (2)</button>
+        <button onclick="setCategory('Wi-Fi')" data-cat="Wi-Fi" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">Wi-Fi & LAN (4)</button>
+        <button onclick="setCategory('System')" data-cat="System" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">System & NAT (20)</button>
+        <button onclick="setCategory('Tuning')" data-cat="Tuning" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-sans font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700">Tuning & Sweep (1)</button>
       </div>
-    </section>
 
-    <!-- Origin Story & Attribution -->
-    <section id="origin" class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div class="glass-card rounded-2xl p-8 sm:p-10 border border-brand-border">
-        <div class="flex items-center space-x-3 text-xs font-mono text-brand-teal uppercase tracking-wider mb-3">
-          <span>Author & Architect</span>
-          <span>•</span>
-          <span>SLIIT Malabe</span>
+      <!-- Tools Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="tools-grid">
+        <!-- TOOLS_GRID_START -->
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_add_port_forwarding" data-cat="System" onclick="openToolModal('router_add_port_forwarding')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_add_port_forwarding</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Creates a new NAT virtual server port forwarding rule on the router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">7 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
         </div>
-        <h2 class="text-2xl sm:text-3xl font-bold text-white mb-4">
-          Engineered by Dulith Divisekara
-        </h2>
-        <p class="text-zinc-400 leading-relaxed mb-4">
-          Conceived and built in <strong>Malabe, Sri Lanka (near the SLIIT Campus area)</strong> out of necessity to stabilize an active <strong>Hutch 4G LTE unlimited 20 Mbps SIM</strong> running in a <strong>TP-Link Archer MR200 v5</strong> router.
-        </p>
-        <p class="text-zinc-400 leading-relaxed mb-6">
-          To overcome tower congestion and high bufferbloat, this server exposes live 3GPP RF telemetry, enables manual cell and band locking, and enforces an automatic <strong>Network Guard</strong> to prevent AI agents from ever executing commands when connected to campus Wi-Fi or mobile hotspots.
-        </p>
-        <div class="flex items-center space-x-4">
-          <a href="https://github.com/dulithdivisekara" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-brand-teal hover:underline flex items-center space-x-1">
-            <span>View GitHub Profile</span>
-            <span>&rarr;</span>
-          </a>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_calibrate" data-cat="Tuning" onclick="openToolModal('router_calibrate')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_calibrate</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-300">Tuning</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Runs autonomous RF band calibration across LTE frequencies (Band 8, 3, 1, 40, Auto) with 45s watchdog fail-safe.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">4 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_check_firmware" data-cat="System" onclick="openToolModal('router_check_firmware')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_check_firmware</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Checks for available online official TP-Link firmware updates.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_clear_system_logs" data-cat="Diagnostics" onclick="openToolModal('router_clear_system_logs')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_clear_system_logs</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Clears the internal system event log buffer on the router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">2 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_del_port_forwarding" data-cat="System" onclick="openToolModal('router_del_port_forwarding')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_del_port_forwarding</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Deletes an existing NAT virtual server port forwarding rule by stack ID.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">3 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_connected_clients" data-cat="Diagnostics" onclick="openToolModal('router_get_connected_clients')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_connected_clients</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves all connected wired and wireless devices currently on the router LAN.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_data_limit" data-cat="Cellular" onclick="openToolModal('router_get_data_limit')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_data_limit</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves monthly cellular data allowance, billing cycle start day, and live bandwidth.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_ddns" data-cat="System" onclick="openToolModal('router_get_ddns')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_ddns</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves Dynamic DNS (DDNS) provider configurations (TP-Link Cloud, No-IP, DynDNS).</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_dmz" data-cat="System" onclick="openToolModal('router_get_dmz')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_dmz</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves DMZ (Demilitarized Zone) host forwarding status and destination IP.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_guest_wifi" data-cat="Wi-Fi" onclick="openToolModal('router_get_guest_wifi')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_guest_wifi</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves current dual-band (2.4GHz / 5GHz) Guest Wi-Fi status, SSIDs, and isolation settings.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_led_status" data-cat="System" onclick="openToolModal('router_get_led_status')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_led_status</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves the physical LED status and night mode schedule.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_operation_mode" data-cat="System" onclick="openToolModal('router_get_operation_mode')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_operation_mode</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves the active router operation mode (3G/4G Router Mode vs Wireless Router Mode).</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_port_forwarding" data-cat="System" onclick="openToolModal('router_get_port_forwarding')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_port_forwarding</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Lists active NAT Virtual Server port forwarding rules on the cellular WAN interface.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_reboot_schedule" data-cat="System" onclick="openToolModal('router_get_reboot_schedule')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_reboot_schedule</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves the automated periodic reboot schedule settings.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_rf_signal" data-cat="Cellular" onclick="openToolModal('router_get_rf_signal')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_rf_signal</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves real-time 4G LTE RF signal metrics (RSRP, RSRQ, SNR, EARFCN, PCI, Signal Bars).</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_status" data-cat="Diagnostics" onclick="openToolModal('router_get_status')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_status</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves full device, cellular LTE, RF signal metrics, and WAN network status.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_system_logs" data-cat="Diagnostics" onclick="openToolModal('router_get_system_logs')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_system_logs</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves system and cellular event logs from the TP-Link router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">4 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_time" data-cat="System" onclick="openToolModal('router_get_time')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_time</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves current router system clock, time zone, daylight savings, and NTP server status.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_upnp" data-cat="System" onclick="openToolModal('router_get_upnp')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_upnp</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves Universal Plug and Play (UPnP) status and active dynamic port mappings.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_get_wifi_networks" data-cat="Wi-Fi" onclick="openToolModal('router_get_wifi_networks')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_get_wifi_networks</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Retrieves status, SSIDs, channels, and operational state of 2.4 GHz and 5 GHz Wi-Fi radios.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_manage_dhcp_reservation" data-cat="System" onclick="openToolModal('router_manage_dhcp_reservation')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_manage_dhcp_reservation</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Manages static DHCP IP address reservations on the router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">5 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_profile_check" data-cat="Diagnostics" onclick="openToolModal('router_profile_check')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_profile_check</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Inspects the current host network environment (SSID, Gateway) to ensure connection safety.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">0 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_read_sms" data-cat="SMS" onclick="openToolModal('router_read_sms')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_read_sms</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-300">SMS</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Reads incoming or sent SMS messages from the router SIM inbox (e.g. package expiry alerts).</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">3 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_reboot" data-cat="System" onclick="openToolModal('router_reboot')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_reboot</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Initiates a graceful reboot of the TP-Link router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">2 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_run_diagnostic" data-cat="Diagnostics" onclick="openToolModal('router_run_diagnostic')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_run_diagnostic</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Runs a router-side diagnostic self-test verifying physical link, WAN IP, and Internet NCSI reachability.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_run_ussd" data-cat="Cellular" onclick="openToolModal('router_run_ussd')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_run_ussd</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Executes a USSD query on the cellular SIM card (e.g. '*344#' for Hutch quota, '*123#' for balance).</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">2 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_send_sms" data-cat="SMS" onclick="openToolModal('router_send_sms')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_send_sms</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-purple-100 text-purple-900 dark:bg-purple-900/40 dark:text-purple-300">SMS</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Sends an SMS message through the router SIM card.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">3 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_cell_lock" data-cat="Cellular" onclick="openToolModal('router_set_cell_lock')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_cell_lock</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Locks or unlocks the router to a specific cellular base station tower (EARFCN + PCI).</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">5 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_data_limit" data-cat="Cellular" onclick="openToolModal('router_set_data_limit')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_data_limit</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Configures monthly cellular data quota, billing day reset, and usage alert threshold.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">6 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_dmz" data-cat="System" onclick="openToolModal('router_set_dmz')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_dmz</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Enables or disables DMZ host forwarding to an internal IP address.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">4 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_dns" data-cat="System" onclick="openToolModal('router_set_dns')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_dns</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Configures custom DNS resolvers on the router's WAN connection.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">3 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_guest_wifi" data-cat="Wi-Fi" onclick="openToolModal('router_set_guest_wifi')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_guest_wifi</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Configures or toggles dual-band Guest Wi-Fi networks and local LAN isolation.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">7 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_led_night_mode" data-cat="System" onclick="openToolModal('router_set_led_night_mode')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_led_night_mode</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Configures night mode to turn off router front panel LEDs automatically during sleeping hours.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">4 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_lte_band" data-cat="Cellular" onclick="openToolModal('router_set_lte_band')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_lte_band</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-300">Cellular</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Manually locks router to a specific LTE band (e.g. '3' for 1800MHz, '8' for 900MHz, '40' for 2300MHz, or 'auto').</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">3 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_reboot_schedule" data-cat="System" onclick="openToolModal('router_set_reboot_schedule')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_reboot_schedule</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Configures or disables automated daily or weekly periodic router reboots.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">7 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_upnp" data-cat="System" onclick="openToolModal('router_set_upnp')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_upnp</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Enables or disables UPnP dynamic port forwarding on the router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">3 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_set_wifi_radio" data-cat="Wi-Fi" onclick="openToolModal('router_set_wifi_radio')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_set_wifi_radio</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-300">Wi-Fi</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Enables or disables a Wi-Fi radio (2.4GHz or 5GHz) and optionally updates its SSID.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">5 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_sync_time" data-cat="System" onclick="openToolModal('router_sync_time')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_sync_time</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Triggers an immediate NTP network time synchronization on the router.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">1 param</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <div class="rounded-xl p-5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 tool-card cursor-pointer group transition-all duration-150" data-name="router_toggle_ipv6" data-cat="System" onclick="openToolModal('router_toggle_ipv6')">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <code class="text-sm font-bold font-mono text-teal-700 dark:text-tplink-cyan group-hover:underline break-all">router_toggle_ipv6</code>
+            <span class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-rose-100 text-rose-900 dark:bg-rose-900/40 dark:text-rose-300">System</span>
+          </div>
+          <p class="text-slate-700 dark:text-slate-300 text-sm leading-relaxed mb-4">Enables or disables the IPv6 stack on the router's cellular connection.</p>
+          <div class="flex items-center justify-between text-xs font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-3">
+            <span class="font-mono">2 params</span>
+            <span class="text-teal-700 dark:text-tplink-cyan font-semibold group-hover:underline flex items-center gap-1">
+              Inspect Schema
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </span>
+          </div>
+        </div>
+        <!-- TOOLS_GRID_END -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Client Setup Section -->
+  <section id="clients" class="py-16 sm:py-20 scroll-mt-24">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">One-Click Client Setup</h2>
+        <p class="text-slate-600 dark:text-slate-400 text-sm mt-1">Configure your favorite AI agent framework in seconds</p>
+      </div>
+
+      <div class="rounded-2xl p-4 sm:p-6 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-4 mb-6">
+          <button onclick="setConfigTab('claude')" id="tab-claude" class="cfg-tab px-3 py-1.5 rounded-lg text-xs font-sans font-semibold bg-teal-100 text-teal-900 dark:bg-teal-900/40 dark:text-teal-300">Claude Desktop</button>
+          <button onclick="setConfigTab('antigravity')" id="tab-antigravity" class="cfg-tab px-3 py-1.5 rounded-lg text-xs font-sans font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Google Antigravity</button>
+          <button onclick="setConfigTab('cursor')" id="tab-cursor" class="cfg-tab px-3 py-1.5 rounded-lg text-xs font-sans font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Cursor / Windsurf</button>
+          <button onclick="setConfigTab('docker')" id="tab-docker" class="cfg-tab px-3 py-1.5 rounded-lg text-xs font-sans font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Docker / GHCR</button>
+        </div>
+
+        <div class="relative bg-slate-900 rounded-xl p-4 font-mono text-xs sm:text-sm text-slate-200 border border-slate-800">
+          <pre id="config-snippet" class="overflow-x-auto pr-16 leading-relaxed">{
+  "mcpServers": {
+    "tplink-router": {
+      "command": "npx",
+      "args": ["-y", "@dulith/tplink-mcp"],
+      "env": {
+        "TPLINK_ROUTER_IP": "192.168.1.1",
+        "TPLINK_PASSWORD": "your_router_password"
+      }
+    }
+  }
+}</pre>
+          <button onclick="copyConfigSnippet()" id="config-copy-btn" class="absolute top-3 right-3 px-3 py-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white text-xs font-mono transition-colors">
+            Copy
+          </button>
         </div>
       </div>
-    </section>
-  </main>
+    </div>
+  </section>
+
+  <!-- Tool Details Modal -->
+  <div id="tool-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
+    <div class="bg-white dark:bg-[#0F1420] border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+      <button onclick="closeToolModal()" aria-label="Close modal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-900 dark:hover:text-white text-lg p-1">✕</button>
+      <div class="flex items-center gap-2 mb-2 pr-6">
+        <h3 id="modal-title" class="text-base sm:text-lg font-bold font-mono text-teal-700 dark:text-tplink-cyan break-all">router_profile_check</h3>
+        <span id="modal-category" class="shrink-0 px-2.5 py-0.5 rounded text-xs font-sans font-semibold bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-300">Diagnostics</span>
+      </div>
+      <p id="modal-desc" class="text-slate-700 dark:text-slate-300 text-sm mb-4 leading-relaxed">Detailed tool description</p>
+
+      <div class="mb-4">
+        <h4 class="text-xs font-sans uppercase text-slate-500 dark:text-slate-400 mb-2 font-semibold">Parameters</h4>
+        <div id="modal-params" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+      </div>
+
+      <div>
+        <h4 class="text-xs font-sans uppercase text-slate-500 dark:text-slate-400 mb-2 font-semibold">Example AI Prompt</h4>
+        <div id="modal-prompt" class="p-3 rounded-lg bg-slate-100 dark:bg-black/50 font-mono text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+          "Check router status"
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
-  <footer class="border-t border-brand-border glass-card py-8 text-center text-xs text-zinc-500">
-    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div class="flex items-center space-x-2">
-        <span>© 2026 Dulith Divisekara. MIT Licensed.</span>
+  <footer class="border-t border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-slate-950 py-12 text-slate-600 dark:text-slate-400 text-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+          DD
+        </div>
+        <div>
+          <p class="text-slate-900 dark:text-white font-medium">Crafted by Dulith Divisekara</p>
+          <p class="text-slate-500">IT Undergraduate @ SLIIT Malabe, Sri Lanka • Born from Hutch 4G Optimization</p>
+        </div>
       </div>
-      <div class="flex items-center space-x-6 text-zinc-400">
-        <a href="https://tp-link-cli.dulith.me" class="hover:text-white transition">TP-Link CLI Tool</a>
-        <a href="https://github.com/dulithdivisekara/tplink-mcp" class="hover:text-white transition">GitHub Repo</a>
-        <a href="https://modelcontextprotocol.io" class="hover:text-white transition">Model Context Protocol</a>
+
+      <div class="flex flex-wrap items-center gap-6 font-sans text-xs">
+        <a href="https://github.com/dulithdivisekara/tplink-mcp" class="hover:text-slate-900 dark:hover:text-white transition-colors">MCP GitHub</a>
+        <a href="https://github.com/dulithdivisekara/tp-link-mcp-web" class="hover:text-slate-900 dark:hover:text-white transition-colors">Web GitHub</a>
+        <a href="https://tp-link-cli.dulith.me" class="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">CLI Showcase</a>
+        <a href="https://dulith.me" class="hover:text-slate-900 dark:hover:text-white transition-colors">dulith.me</a>
+      </div>
+
+      <div class="text-slate-500 text-center md:text-right font-sans">
+        MIT License • 100% Free & Open-Source
       </div>
     </div>
   </footer>
 
-  <script>
-    function setTab(tab) {
-      ['claude', 'antigravity', 'docker'].forEach(t => {
-        document.getElementById('content-' + t).classList.add('hidden');
-        document.getElementById('tab-' + t).classList.remove('border-brand-teal', 'text-white', 'bg-zinc-800/50');
-        document.getElementById('tab-' + t).classList.add('border-transparent', 'text-zinc-400');
-      });
-      document.getElementById('content-' + tab).classList.remove('hidden');
-      document.getElementById('tab-' + tab).classList.add('border-brand-teal', 'text-white', 'bg-zinc-800/50');
-      document.getElementById('tab-' + tab).classList.remove('border-transparent', 'text-zinc-400');
-    }
-
-    function filterTools() {
-      const q = document.getElementById('toolSearch').value.toLowerCase();
-      const rows = document.querySelectorAll('#toolsTable tbody tr');
-      rows.forEach(r => {
-        const text = r.textContent.toLowerCase();
-        r.style.display = text.includes(q) ? '' : 'none';
-      });
-    }
-  </script>
+  <script src="js/app.js"></script>
 </body>
 </html>

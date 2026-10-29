@@ -93,6 +93,13 @@ def router_get_rf_signal(force: bool = False) -> Dict[str, Any]:
         "earfcn": lte.earfcn,
         "pci": lte.pci,
         "metrics": dataclasses.asdict(lte.rf),
+        "ratings": {
+            "rsrp": lte.rf.rsrp_rating,
+            "rsrq": lte.rf.rsrq_rating,
+            "snr": lte.rf.snr_rating,
+            "rssi": lte.rf.rssi_rating,
+            "signal_bars": f"{lte.rf.signal_bars}/4"
+        }
     }
 
 
@@ -117,6 +124,9 @@ def router_set_cell_lock(enable: bool, earfcn: Optional[str] = None, pci: Option
             "the 4G LTE connection for 10-20 seconds while the radio renegotiates. "
             "If you intend to proceed, call this tool again with confirm=True."
         )
+
+    if enable and (not earfcn or not pci):
+        return "Error: Both 'earfcn' and 'pci' are required when enabling Cell Lock (e.g. earfcn='10638', pci='0')."
 
     client = _get_client_and_verify(force=force)
     with SafeSession(client):
@@ -172,8 +182,11 @@ def router_run_ussd(code: str, force: bool = False) -> str:
     with SafeSession(client):
         if not hasattr(client, "send_ussd"):
             return "USSD commands are only supported on cellular MR series models."
-        res = client.send_ussd(code)
-    return res.response if res.success else f"USSD Error: {res.error_message}"
+        try:
+            res = client.send_ussd(code)
+            return res.response if res.success else f"USSD Error: {res.error_message}"
+        except TimeoutError:
+            return f"USSD command '{code}' timed out waiting for cellular carrier response. Operator network may be busy."
 
 
 @server.tool()
@@ -244,10 +257,7 @@ def router_manage_dhcp_reservation(action: str, mac: Optional[str] = None, ip: O
 
         if action == "list":
             res = client.get_dhcp_reservations()
-            if not res:
-                return "No static DHCP reservations configured."
-            import json
-            return json.dumps(res, indent=2)
+            return res if res else "No static DHCP reservations configured."
 
         if not mac:
             return f"Error: MAC address is required when performing action '{action}'."
@@ -433,6 +443,7 @@ def router_calibrate(web: bool = True, port: int = 8765, dry_run: bool = False, 
         host=cfg.get("host", "http://192.168.1.1"),
         password=cfg.get("password"),
         username=cfg.get("username", "admin"),
+        session_cookie=cfg.get("session_cookie"),
         watchdog_timeout=45,
         dry_run=dry_run,
     )
@@ -654,6 +665,9 @@ def router_set_dmz(enabled: bool, ip_address: str = "", confirm: bool = False, f
             f"SAFETY WARNING: Setting DMZ to {enabled} (IP: {ip_address}) exposes all unmapped ports to that host. "
             f"Call with confirm=True to execute."
         )
+
+    if enabled and not ip_address.strip():
+        return "Error: Internal 'ip_address' is required when enabling DMZ (e.g. ip_address='192.168.1.100')."
 
     client = _get_client_and_verify(force=force)
     with SafeSession(client):
