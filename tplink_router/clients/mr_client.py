@@ -28,6 +28,43 @@ def unescape_act_val(val: Optional[str]) -> str:
     return val.replace("&#61;", "=").replace("&#10;", "\n").replace("&#13;", "\r").replace("&amp;", "&")
 
 
+def bands_to_masks(bands: Union[int, str, List[Union[int, str]]]) -> tuple[int, int]:
+    """Converts LTE band numbers into TP-Link 32-bit low and high bitmasks."""
+    if isinstance(bands, (int, str)):
+        # Split on commas in case a multi-band string is passed, e.g. "3,8"
+        bands_list = [b.strip() for b in str(bands).split(",") if b.strip()]
+    else:
+        bands_list = [str(b).strip() for b in bands if str(b).strip()]
+
+    mask_l = 0
+    mask_h = 0
+    for b in bands_list:
+        clean = b.lower().replace("band", "").replace("b", "").strip()
+        if not clean or clean in ("auto", "0"):
+            continue
+        try:
+            b_num = int(clean)
+        except ValueError:
+            continue
+        if 1 <= b_num <= 32:
+            mask_l |= (1 << (b_num - 1))
+        elif 33 <= b_num <= 64:
+            mask_h |= (1 << (b_num - 33))
+    return mask_l, mask_h
+
+
+def masks_to_bands(mask_l: int, mask_h: int) -> List[int]:
+    """Decodes TP-Link 32-bit low and high bitmasks into a sorted list of band integers."""
+    bands = []
+    for i in range(32):
+        if mask_l & (1 << i):
+            bands.append(i + 1)
+    for i in range(32):
+        if mask_h & (1 << i):
+            bands.append(i + 33)
+    return sorted(bands)
+
+
 class ActItem:
     GET = 1
     SET = 2
@@ -131,10 +168,16 @@ class TPLinkMRClient:
             if not line:
                 continue
 
-            match = re.match(r"\[[^\]]+\](\d+)", line)
+            match = re.match(r"\[([^\]]+)\](\d+)", line)
             if match:
-                current_idx = match.group(1)
-                current_obj = {}
+                tag = match.group(1)
+                idx = match.group(2)
+                if tag.lower() == "error":
+                    result["error"] = idx
+                    continue
+                current_idx = idx
+                stack = tag.split("#")[1] if "#" in tag else tag
+                current_obj = {"__stack": stack}
                 if current_idx in result:
                     if not isinstance(result[current_idx], list):
                         result[current_idx] = [result[current_idx]]
@@ -731,38 +774,133 @@ class TPLinkMRClient:
 
         return {"status": "Running", "result_code": 3, "message": "Diagnostic still in progress."}
 
-    def set_lte_band(self, band: str) -> bool:
-        """Manually locks router to specific LTE band (e.g. '3', '8', '40', or 'auto')."""
-        band_str = str(band).lower().replace("band", "").strip()
-        if band_str in ("auto", "0"):
-            attrs = [
-                "bandPrefMaskL=0",
-                "bandPrefMaskH=0",
-                "enable=0",
-                "selectedBand=0",
-            ]
+    def _resolve_lte_wan_stack(self) -> str:
+        """Resolves the active LTE WAN configuration stack (e.g. 2,1,0,0,0,0)."""
+        try:
+            res = self.req_act([
+                ActItem(ActItem.GL, "WAN_COMMON_INTF_CFG"),
+                ActItem(ActItem.GL, "LTE_WAN_CFG"),
+            ])
+            raw_wans = res.get("0", [])
+            if isinstance(raw_wans, dict):
+                raw_wans = [raw_wans]
+
+            lte_prefix = "2"
+            for w in raw_wans:
+                if w.get("WANAccessType") == "LTE":
+                    stk = w.get("__stack", "")
+                    if stk:
+                        lte_prefix = stk.split(",")[0]
+                    break
+
+            raw_cfgs = res.get("1", [])
+            if isinstance(raw_cfgs, dict):
+                raw_cfgs = [raw_cfgs]
+            for c in raw_cfgs:
+                stk = c.get("__stack", "")
+                if stk and stk.startswith(f"{lte_prefix},"):
+                    return stk
+        except Exception as e:
+            logger.debug(f"Failed to auto-detect LTE WAN stack: {e}")
+        return "2,1,0,0,0,0"
+
+    def get_band_config(self) -> Dict[str, Any]:
+        """Returns the active LTE band configuration, manual/auto mode, and supported bands."""
+        wan_stack = self._resolve_lte_wan_stack()
+        acts = [
+            ActItem(ActItem.GET, "LTE_WAN_CFG", stack=wan_stack, attrs=[
+                "bandSelectSwitch", "bandSelectedMaskL", "bandSelectedMaskH",
+                "bandSupportMaskL", "bandSupportMaskH"
+            ])
+        ]
+        res = self.req_act(acts)
+        raw = res.get("0", {})
+        if isinstance(raw, list) and raw:
+            cfg = raw[0]
+        elif isinstance(raw, dict):
+            cfg = raw
         else:
-            try:
-                b_num = int(band_str)
-            except ValueError:
-                raise ValueError(f"Invalid LTE Band: {band}")
+            cfg = {}
 
-            if 1 <= b_num <= 32:
-                mask_l = 1 << (b_num - 1)
-                mask_h = 0
-            elif 33 <= b_num <= 64:
-                mask_l = 0
-                mask_h = 1 << (b_num - 32)
-            else:
-                raise ValueError(f"Unsupported LTE Band: {band}")
+        switch = cfg.get("bandSelectSwitch", "0")
+        is_manual = str(switch) == "1"
+        try:
+            mask_l = int(cfg.get("bandSelectedMaskL", 0))
+            mask_h = int(cfg.get("bandSelectedMaskH", 0))
+        except (ValueError, TypeError):
+            mask_l, mask_h = 0, 0
 
-            attrs = [
+        try:
+            supp_l = int(cfg.get("bandSupportMaskL", 0))
+            supp_h = int(cfg.get("bandSupportMaskH", 0))
+        except (ValueError, TypeError):
+            supp_l, supp_h = 0, 0
+
+        configured = masks_to_bands(mask_l, mask_h) if is_manual else []
+        supported = masks_to_bands(supp_l, supp_h)
+
+        lte_status = self.get_lte_status()
+
+        return {
+            "mode": "manual" if is_manual else "auto",
+            "configured_bands": configured,
+            "configured_str": f"Manual ({', '.join('B' + str(b) for b in configured)})" if is_manual and configured else "Auto",
+            "supported_bands": supported or [1, 3, 7, 8, 20, 38, 40, 41],
+            "connected_band": lte_status.band,
+            "earfcn": lte_status.earfcn,
+            "pci": lte_status.pci,
+            "signal_bars": lte_status.rf.signal_bars,
+            "rsrp": lte_status.rf.rsrp_dbm,
+            "rsrq": lte_status.rf.rsrq_db,
+            "snr": lte_status.rf.snr_db,
+        }
+
+    def set_lte_band(self, band: str) -> bool:
+        """Manually locks router to specific LTE band (e.g. '3', '8', '40', or 'auto').
+        
+        Controls true hardware modem carrier selection via LTE_WAN_CFG bitmasks (stack 2,1,0,0,0,0),
+        matching the official Archer MR Web UI mechanism and triggering RF modem retuning.
+        """
+        band_str = str(band).lower().replace("band", "").strip()
+        is_auto = band_str in ("auto", "0", "")
+
+        if is_auto:
+            switch = 0
+            mask_l = 0
+            mask_h = 0
+        else:
+            switch = 1
+            mask_l, mask_h = bands_to_masks(band_str)
+            if mask_l == 0 and mask_h == 0:
+                raise ValueError(f"Invalid or unsupported LTE Band: {band}")
+
+        wan_stack = self._resolve_lte_wan_stack()
+
+        # Primary Archer MR OID: LTE_WAN_CFG on resolved stack (wanCfgStk)
+        acts = [
+            ActItem(
+                ActItem.SET,
+                "LTE_WAN_CFG",
+                stack=wan_stack,
+                attrs=[
+                    f"bandSelectSwitch={switch}",
+                    f"bandSelectedMaskL={mask_l}",
+                    f"bandSelectedMaskH={mask_h}",
+                ],
+            )
+        ]
+        self.req_act(acts)
+
+        # Secondary fallback: LTE_BAND_SEL for legacy MR models (swallow 9005 error if rejected)
+        try:
+            legacy_attrs = [
                 f"bandPrefMaskL={mask_l}",
                 f"bandPrefMaskH={mask_h}",
-                "enable=1",
-                f"selectedBand={b_num}",
+                f"enable={1 if switch == 1 else 0}",
+                f"selectedBand={int(band_str) if not is_auto and band_str.isdigit() else 0}",
             ]
+            self.req_act([ActItem(ActItem.SET, "LTE_BAND_SEL", attrs=legacy_attrs)])
+        except Exception:
+            pass
 
-        acts = [ActItem(ActItem.SET, "LTE_BAND_SEL", attrs=attrs)]
-        self.req_act(acts)
         return True

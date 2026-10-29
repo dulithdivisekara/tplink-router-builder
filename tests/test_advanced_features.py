@@ -130,14 +130,49 @@ class TestAdvancedMRFeatures(unittest.TestCase):
     def test_band_lock_and_diag(self):
         with patch.object(self.client, "req_act", return_value={"0": {"LastResult": "1"}}) as mock_req:
             self.client.set_lte_band("3")
-            band_call = mock_req.call_args[0][0][0]
-            self.assertEqual(band_call.oid, "LTE_BAND_SEL")
-            self.assertIn("selectedBand=3", band_call.attrs)
-            self.assertIn("bandPrefMaskL=4", band_call.attrs)
-            self.assertIn("bandPrefMaskH=0", band_call.attrs)
+            # Collect all ActItems passed across mock_req calls
+            all_acts = [act for call in mock_req.call_args_list for act in call[0][0]]
+            wan_call = next((a for a in all_acts if a.oid == "LTE_WAN_CFG" and a.type == a.SET), None)
+            self.assertIsNotNone(wan_call)
+            self.assertIn("bandSelectSwitch=1", wan_call.attrs)
+            self.assertIn("bandSelectedMaskL=4", wan_call.attrs)
+            self.assertIn("bandSelectedMaskH=0", wan_call.attrs)
 
             res = self.client.run_wan_diagnostic(max_wait_sec=2)
             self.assertEqual(res["status"], "Passed")
+
+    def test_get_band_config(self):
+        sample_wan_cfg = {
+            "0": {
+                "bandSelectSwitch": "1",
+                "bandSelectedMaskL": "128",
+                "bandSelectedMaskH": "0",
+                "bandSupportMaskL": "524485",
+                "bandSupportMaskH": "416",
+            }
+        }
+        with patch.object(self.client, "req_act", return_value=sample_wan_cfg):
+            with patch.object(self.client, "get_lte_status") as mock_status:
+                from tplink_router.models.device import LTEStatus, RFMetrics
+                mock_status.return_value = LTEStatus(
+                    connected=True,
+                    sim_status="Ready",
+                    isp_name="Hutch",
+                    band="Band 8 (900 MHz)",
+                    earfcn="10638",
+                    pci="0",
+                    rf=RFMetrics(0, 0, 0, -85, 3),
+                    rx_speed_kbps=0.0,
+                    tx_speed_kbps=0.0
+                )
+                b_cfg = self.client.get_band_config()
+                self.assertEqual(b_cfg["mode"], "manual")
+                self.assertEqual(b_cfg["configured_bands"], [8])
+                self.assertIn("Manual (B8)", b_cfg["configured_str"])
+                self.assertIn(8, b_cfg["supported_bands"])
+                self.assertIn(3, b_cfg["supported_bands"])
+                self.assertIn(40, b_cfg["supported_bands"])
+                self.assertEqual(b_cfg["connected_band"], "Band 8 (900 MHz)")
 
 
 if __name__ == "__main__":

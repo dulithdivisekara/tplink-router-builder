@@ -644,37 +644,66 @@ def cmd_band(args: argparse.Namespace):
 
         target_band = getattr(args, "band", None)
         if not target_band:
-            lte = client.get_lte_status()
+            if hasattr(client, "get_band_config"):
+                b_cfg = client.get_band_config()
+                active_mode = b_cfg.get("configured_str", "Auto")
+                connected_band = b_cfg.get("connected_band", "Auto / LTE")
+                earfcn = b_cfg.get("earfcn")
+                pci = b_cfg.get("pci")
+                supported_bands = b_cfg.get("supported_bands", [1, 3, 7, 8, 20, 38, 40, 41])
+            else:
+                lte = client.get_lte_status()
+                active_mode = "Auto"
+                connected_band = lte.band
+                earfcn = lte.earfcn
+                pci = lte.pci
+                supported_bands = [1, 3, 7, 8, 20, 38, 40, 41]
+
             if getattr(args, "json", False):
                 print(json.dumps({
-                    "active_band": lte.band,
-                    "earfcn": lte.earfcn,
-                    "pci": lte.pci,
-                    "supported_bands": ["3 (1800MHz)", "8 (900MHz)", "1 (2100MHz)", "40 (2300MHz)", "auto"]
+                    "mode": active_mode,
+                    "connected_band": connected_band,
+                    "earfcn": earfcn,
+                    "pci": pci,
+                    "supported_bands": supported_bands
                 }, indent=2))
                 return
-            print("\n" + "=" * 55)
+
+            print("\n" + "=" * 62)
             print("  \033[1mACTIVE LTE BAND CONFIGURATION\033[0m")
-            print("=" * 55)
-            print(f"Current Active Band : \033[1m{lte.band}\033[0m")
-            if lte.earfcn:
-                print(f"Channel (EARFCN)    : {lte.earfcn} (PCI: {lte.pci or 'N/A'})")
-            print("-" * 55)
-            print("Supported Bands in Sri Lanka:")
-            print("  Band 3  : 1800 MHz (Fastest Hutch / Dialog LTE)")
-            print("  Band 8  : 900 MHz (Best rain penetration & range)")
-            print("  Band 40 : 2300 MHz (High-capacity TDD)")
-            print("  auto    : Automatic network selection")
-            print("-" * 55)
-            print("To lock onto a band:")
+            print("=" * 62)
+            print(f"Configured Band Mode : \033[1m{active_mode}\033[0m")
+            print(f"Connected RF Link    : \033[1m{connected_band}\033[0m")
+            if earfcn:
+                print(f"Channel (EARFCN)     : {earfcn} (PCI: {pci or '0'})")
+            print("-" * 62)
+            print("Hardware Supported Bands (Sri Lanka Context):")
+            band_descriptions = {
+                1: "2100 MHz (FDD - Dialog / Mobitel 4G)",
+                3: "1800 MHz (FDD - High-speed Hutch / Dialog primary)",
+                7: "2600 MHz (FDD - High-capacity metro)",
+                8: "900 MHz  (FDD - Best rain penetration & indoor reach)",
+                20: "800 MHz  (FDD - Sub-1GHz rural)",
+                38: "2600 MHz (TDD)",
+                40: "2300 MHz (TDD - Dialog high-capacity)",
+                41: "2500 MHz (TDD)"
+            }
+            for b in supported_bands:
+                desc = band_descriptions.get(b, "LTE Carrier")
+                print(f"  Band {b:<2} : {desc}")
+            print("  auto    : Automatic network roaming selection")
+            print("-" * 62)
+            print("To lock modem onto a band:")
             print("  tplink-cli band 3")
             print("  tplink-cli band 8")
             print("  tplink-cli band auto")
-            print("=" * 55 + "\n")
+            print("=" * 62 + "\n")
             return
 
+        print(f"Locking hardware modem to band '{target_band}'...")
         client.set_lte_band(target_band)
-    print(f"\033[92mLTE band successfully configured to '{target_band}'.\033[0m")
+    print(f"\033[92m✓ LTE band successfully configured to '{target_band}'.\033[0m")
+    print("\033[90mCellular modem is retuning RF hardware. Signal LEDs will cycle.\033[0m")
 
 
 def cmd_calibrate(args: argparse.Namespace):
