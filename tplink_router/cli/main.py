@@ -1828,7 +1828,91 @@ def build_parser() -> argparse.ArgumentParser:
     p_legacy = subparsers.add_parser("legacy", parents=[common_parser], help="Display classic standard argparse help layout")
     p_legacy.set_defaults(func=lambda a: parser.print_help())
 
+    # tui
+    def _cmd_tui(a):
+        from tplink_router.cli.interactive_tui import launch_tui
+        cfg_mgr = ConfigManager()
+        cfg = cfg_mgr.load()
+        chosen = launch_tui(target_host=cfg.get("host", "http://192.168.1.1"))
+        if chosen:
+            return dispatch_tui_command(chosen, parser)
+        return 0
+
+    p_tui = subparsers.add_parser("tui", parents=[common_parser], help="Launch interactive Terminal UI (TUI)")
+    p_tui.set_defaults(func=_cmd_tui)
+
     return parser
+
+
+def dispatch_tui_command(chosen_cmd: str, parser: argparse.ArgumentParser) -> int:
+    cmd_args = [chosen_cmd]
+
+    if chosen_cmd == "band":
+        try:
+            val = input("Enter Band to lock [3, 8, 40, auto, or Enter for active status]: ").strip()
+            if val:
+                cmd_args.append(val)
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
+            return 0
+
+    elif chosen_cmd == "ipv6":
+        try:
+            val = input("Toggle IPv6 [on, off, or Enter for active status]: ").strip().lower()
+            if val in ("on", "off", "enable", "disable"):
+                cmd_args.append(val)
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
+            return 0
+
+    elif chosen_cmd == "ussd":
+        try:
+            code = input("Enter USSD query code (e.g. *344#, *123#): ").strip()
+            if code:
+                cmd_args.append(code)
+            else:
+                return 0
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
+            return 0
+
+    elif chosen_cmd == "sms":
+        try:
+            action = input("SMS action [list, send, or Enter for list]: ").strip().lower()
+            if action == "send":
+                num = input("Recipient phone number: ").strip()
+                msg = input("Message text: ").strip()
+                cmd_args.extend(["send", num, msg])
+            else:
+                cmd_args.append("list")
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
+            return 0
+
+    elif chosen_cmd == "dns":
+        try:
+            val = input("DNS configuration [show, or enter primary IP like 1.1.1.1]: ").strip()
+            if val and val != "show":
+                cmd_args.extend(["set", val])
+            else:
+                cmd_args.append("show")
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
+            return 0
+
+    print(f"\n\033[1;36m> Executing: tplink-cli {' '.join(cmd_args)}\033[0m")
+    parsed = parser.parse_args(cmd_args)
+    for _k, _v in [("json", False), ("host", None), ("username", None), ("password", None), ("cookie", None), ("force", False), ("legacy", False)]:
+        if not hasattr(parsed, _k):
+            setattr(parsed, _k, _v)
+    try:
+        parsed.func(parsed)
+        return 0
+    except KeyboardInterrupt:
+        print("\n\033[93m[Aborted] Operation cancelled by user.\033[0m")
+        return 130
+    except Exception as e:
+        return handle_cli_error(e, parsed)
 
 
 def main(args=None):
@@ -1839,16 +1923,38 @@ def main(args=None):
         "profile", "config", "cookie", "wifi-guard", "clients", "reservation",
         "data-limit", "wifi", "leds", "diag", "band", "calibrate", "logs",
         "guest-wifi", "port-forward", "dmz", "upnp", "reboot-schedule", "time",
-        "op-mode", "ddns", "fw-check", "repl", "legacy"
+        "op-mode", "ddns", "fw-check", "repl", "legacy", "tui"
     }
     has_subcmd = any(a in subcommands for a in raw_args)
     is_legacy = any(a in ("--legacy", "-l", "legacy") for a in raw_args)
     is_help = any(a in ("-h", "--help", "help") for a in raw_args)
 
-    # Intercept bare or top-level help invocation
+    # Intercept bare invocation (launch interactive TUI in TTY, or static if piped/help)
     if not has_subcmd:
         non_flags = [a for a in raw_args if not a.startswith("-")]
-        if not non_flags and (len(raw_args) == 0 or is_help):
+        if not non_flags and len(raw_args) == 0:
+            if is_legacy:
+                parser = build_parser()
+                parser.print_help()
+                return 0
+            cfg_mgr = ConfigManager()
+            cfg = cfg_mgr.load()
+            target_host = cfg.get("host", "http://192.168.1.1")
+
+            # In interactive TTY, launch Obsidian-style arrow-navigable TUI!
+            if sys.stdin.isatty() and sys.stdout.isatty():
+                from tplink_router.cli.interactive_tui import launch_tui
+                chosen_cmd = launch_tui(target_host=target_host)
+                if not chosen_cmd:
+                    print("\n")
+                    return 0
+                return dispatch_tui_command(chosen_cmd, build_parser())
+            else:
+                from tplink_router.cli.modern_ui import print_modern_ui
+                print_modern_ui(target_host)
+                return 0
+
+        elif not non_flags and is_help:
             if is_legacy:
                 parser = build_parser()
                 parser.print_help()
