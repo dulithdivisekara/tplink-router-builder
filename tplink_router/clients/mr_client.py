@@ -227,8 +227,6 @@ class TPLinkMRClient:
         acts = [
             ActItem(ActItem.GET, "WAN_LTE_LINK_CFG", stack="2,1,0,0,0,0",
                     attrs=["enable", "connectStatus", "networkType", "simStatus", "signalStrength"]),
-            ActItem(ActItem.GET, "WAN_LTE_INTF_CFG", stack="2,0,0,0,0,0",
-                    attrs=["curRxSpeed", "curTxSpeed", "totalStatistics"]),
             ActItem(ActItem.GET, "LTE_WAN_CFG", stack="2,1,0,0,0,0", attrs=["profileName"]),
             ActItem(ActItem.GET, "LTE_NET_STATUS", stack="2,1,0,0,0,0"),
         ]
@@ -236,12 +234,22 @@ class TPLinkMRClient:
 
         raw_link = res.get("0", {})
         link_cfg = raw_link[0] if isinstance(raw_link, list) and raw_link else (raw_link if isinstance(raw_link, dict) else {})
-        raw_intf = res.get("1", {})
-        intf_cfg = raw_intf[0] if isinstance(raw_intf, list) and raw_intf else (raw_intf if isinstance(raw_intf, dict) else {})
-        raw_wan = res.get("2", {})
+        raw_wan = res.get("1", {})
         wan_cfg = raw_wan[0] if isinstance(raw_wan, list) and raw_wan else (raw_wan if isinstance(raw_wan, dict) else {})
-        raw_net = res.get("3", {})
+        raw_net = res.get("2", {})
         net_status = raw_net[0] if isinstance(raw_net, list) and raw_net else (raw_net if isinstance(raw_net, dict) else {})
+
+        # Interface stats
+        intf_cfg = {}
+        try:
+            res_intf = self.req_act([
+                ActItem(ActItem.GET, "WAN_LTE_INTF_CFG", stack="2,0,0,0,0,0",
+                        attrs=["curRxSpeed", "curTxSpeed", "totalStatistics"])
+            ])
+            raw_intf = res_intf.get("0", {})
+            intf_cfg = raw_intf[0] if isinstance(raw_intf, list) and raw_intf else (raw_intf if isinstance(raw_intf, dict) else {})
+        except Exception:
+            pass
 
         # Optional band_info for older firmware models
         band_info = {}

@@ -120,10 +120,18 @@ def cmd_signal(args: argparse.Namespace):
     print("\n\033[1mCurrent LTE RF Signal:\033[0m")
     print(f"  Carrier      : {lte.isp_name}")
     print(f"  Active Band  : {lte.band} (EARFCN: {lte.earfcn}, PCI: {lte.pci})")
-    print(f"  RSRP         : {lte.rf.rsrp_dbm} dBm ({lte.rf.rsrp_rating})")
-    print(f"  RSRQ         : {lte.rf.rsrq_db} dB ({lte.rf.rsrq_rating})")
-    print(f"  SNR          : {lte.rf.snr_db} dB ({lte.rf.snr_rating})")
-    print(f"  Signal Level : {lte.rf.signal_bars} / 4 bars\n")
+    print(f"  Signal Level : {lte.rf.signal_bars} / 4 bars")
+    if lte.rf.rssi_dbm != 0:
+        print(f"  RSSI         : {lte.rf.rssi_dbm} dBm ({lte.rf.rssi_rating})")
+    if lte.rf.rsrp_dbm != 0:
+        print(f"  RSRP         : {lte.rf.rsrp_dbm} dBm ({lte.rf.rsrp_rating})")
+    else:
+        print(f"  RSRP         : N/A (Modem raw: 0 dBm)")
+    if lte.rf.rsrq_db != 0:
+        print(f"  RSRQ         : {lte.rf.rsrq_db} dB ({lte.rf.rsrq_rating})")
+    if lte.rf.snr_db != 0:
+        print(f"  SNR          : {lte.rf.snr_db} dB ({lte.rf.snr_rating})")
+    print()
 
 
 def cmd_cell_lock(args: argparse.Namespace):
@@ -174,7 +182,13 @@ def cmd_dns(args: argparse.Namespace):
     with SafeSession(client):
         action = getattr(args, "action", None)
         if action == "set":
-            primary = args.primary
+            primary = getattr(args, "primary", None)
+            if not primary:
+                print("\nUsage: tplink-cli dns set <primary_dns> [secondary_dns]")
+                print("Examples:")
+                print("  tplink-cli dns set 1.1.1.1 1.0.0.1    (Cloudflare)")
+                print("  tplink-cli dns set 8.8.8.8 8.8.4.4    (Google)\n")
+                return
             secondary = getattr(args, "secondary", "8.8.8.8") or "8.8.8.8"
             client.set_dns(primary, secondary)
             print(f"\033[92mDNS configured to {primary}, {secondary}\033[0m")
@@ -208,19 +222,79 @@ def cmd_dns(args: argparse.Namespace):
 
 def cmd_ipv6(args: argparse.Namespace):
     client = get_client(args)
-    state = args.state.lower() in ("on", "1", "true", "enable")
+    state_str = getattr(args, "state", None)
     with SafeSession(client):
+        if not state_str:
+            v4, v6 = client.get_wan_config()
+            is_enabled = bool(v6.ip or (v6.dns and any(d != "0.0.0.0" for d in v6.dns)))
+            if getattr(args, "json", False):
+                print(json.dumps({
+                    "ipv6_enabled": is_enabled,
+                    "ipv6_address": v6.ip or None,
+                    "ipv6_dns": v6.dns or [],
+                    "gateway": v6.gateway or None
+                }, indent=2))
+                return
+            print("\n" + "=" * 55)
+            print("  \033[1mROUTER IPv6 STACK STATUS\033[0m")
+            print("=" * 55)
+            status_str = "\033[92mENABLED\033[0m" if is_enabled else "\033[90mDISABLED\033[0m"
+            print(f"IPv6 Stack State   : {status_str}")
+            if v6.ip:
+                print(f"IPv6 WAN Address   : {v6.ip}")
+            if v6.dns:
+                print(f"IPv6 DNS Resolvers : {', '.join(v6.dns)}")
+            print("-" * 55)
+            print("To toggle IPv6:")
+            print("  tplink-cli ipv6 on")
+            print("  tplink-cli ipv6 off")
+            print("=" * 55 + "\n")
+            return
+
+        state = state_str.lower() in ("on", "1", "true", "enable")
         client.toggle_ipv6(state)
     print(f"\033[92mIPv6 {'enabled' if state else 'disabled'} successfully.\033[0m")
 
 
 def cmd_ussd(args: argparse.Namespace):
+    code = getattr(args, "code", None)
+    if not code:
+        if sys.stdin.isatty():
+            try:
+                code = input("Enter USSD query code (e.g. *344#, *123#): ").strip()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+        if not code:
+            if getattr(args, "json", False):
+                print(json.dumps({"error": "No USSD code provided"}))
+                return
+            print("\n" + "=" * 55)
+            print("  \033[1mCELLULAR USSD QUERY\033[0m")
+            print("=" * 55)
+            print("Usage: tplink-cli ussd <code>")
+            print("-" * 55)
+            print("Common Carrier USSD Codes in Sri Lanka:")
+            print("  • \033[1mHutch\033[0m   : *344# (Balance & Data Quota), *123# (Self-Care)")
+            print("  • \033[1mDialog\033[0m  : *123# (Account Balance), *456# (Data Balance)")
+            print("  • \033[1mMobitel\033[0m : *100# (Account Balance), *145# (Self-Care)")
+            print("  • \033[1mAirtel\033[0m  : *550# (Balance & Data)")
+            print("-" * 55)
+            print("Example:")
+            print("  tplink-cli ussd *344#")
+            print("=======================================================\n")
+            return
+
     client = get_client(args)
     with SafeSession(client):
         if not hasattr(client, "send_ussd"):
             print("USSD commands are only supported on cellular MR models.")
             return
-        res = client.send_ussd(args.code)
+        res = client.send_ussd(code)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"code": code, "response": res.response}))
+        return
     print(f"\n\033[1mUSSD Response:\033[0m\n{res.response}\n")
 
 
@@ -231,7 +305,23 @@ def cmd_sms(args: argparse.Namespace):
             print("SMS is only supported on cellular MR models.")
             return
         if getattr(args, "subcommand", None) == "send":
-            client.send_sms(args.recipient, args.message)
+            recip = getattr(args, "recipient", None)
+            msg = getattr(args, "message", None)
+            if not recip or not msg:
+                if sys.stdin.isatty():
+                    try:
+                        if not recip:
+                            recip = input("Enter recipient phone number: ").strip()
+                        if not msg:
+                            msg = input("Enter SMS message text: ").strip()
+                    except (KeyboardInterrupt, EOFError):
+                        print()
+                        return
+            if not recip or not msg:
+                print("\nUsage: tplink-cli sms send <phone_number> <message>")
+                print("Example: tplink-cli sms send +94771234567 'Hello from router'\n")
+                return
+            client.send_sms(recip, msg)
             print("\033[92mSMS sent successfully.\033[0m")
         else:
             limit = getattr(args, "limit", 10) or 10
@@ -521,11 +611,22 @@ def cmd_reservation(args: argparse.Namespace):
                 print(f"{r['mac']:<20} {r['ip']:<18} {status:<10}")
             print("=" * 55 + "\n")
         elif sub == "add":
-            client.add_dhcp_reservation(args.mac, args.ip)
-            print(f"\033[92mReservation added: {args.mac} -> {args.ip}\033[0m")
+            mac = getattr(args, "mac", None)
+            ip = getattr(args, "ip", None)
+            if not mac or not ip:
+                print("\nUsage: tplink-cli reservation add <mac_address> <ip_address>")
+                print("Example: tplink-cli reservation add AA-BB-CC-DD-EE-FF 192.168.1.50\n")
+                return
+            client.add_dhcp_reservation(mac, ip)
+            print(f"\033[92mReservation added: {mac} -> {ip}\033[0m")
         elif sub == "del":
-            client.delete_dhcp_reservation(args.mac)
-            print(f"\033[92mReservation deleted for MAC {args.mac}\033[0m")
+            mac = getattr(args, "mac", None)
+            if not mac:
+                print("\nUsage: tplink-cli reservation del <mac_address>")
+                print("Run 'tplink-cli reservation list' to view active reservations.\n")
+                return
+            client.delete_dhcp_reservation(mac)
+            print(f"\033[92mReservation deleted for MAC {mac}\033[0m")
 
 
 def cmd_data_limit(args: argparse.Namespace):
@@ -816,16 +917,24 @@ def cmd_port_forward(args: argparse.Namespace):
 
         action = getattr(args, "subcommand", None) or "list"
         if action == "add":
-            name = args.name
-            ext_port = args.ext_port
-            int_ip = args.int_ip
+            name = getattr(args, "name", None)
+            ext_port = getattr(args, "ext_port", None)
+            int_ip = getattr(args, "int_ip", None)
+            if not name or not ext_port or not int_ip:
+                print("\nUsage: tplink-cli port-forward add <name> <ext_port> <int_ip> [int_port] [--proto TCP|UDP|ALL]")
+                print("Example: tplink-cli port-forward add web 8080 192.168.1.150 80 --proto TCP\n")
+                return
             int_port = getattr(args, "int_port", None) or ext_port
             proto = getattr(args, "proto", "ALL")
             client.add_port_forwarding(name=name, external_port=ext_port, internal_ip=int_ip, internal_port=int_port, protocol=proto)
             print(f"\033[92m✓ Port forwarding rule '{name}' added: Port {ext_port} -> {int_ip}:{int_port} ({proto})\033[0m")
             return
         elif action == "del":
-            stack = args.stack
+            stack = getattr(args, "stack", None)
+            if not stack:
+                print("\nUsage: tplink-cli port-forward del <rule_stack>")
+                print("Run 'tplink-cli port-forward list' to view active rule stacks.\n")
+                return
             client.del_port_forwarding(rule_stack=stack)
             print(f"\033[92m✓ Port forwarding rule at stack '{stack}' deleted.\033[0m")
             return
@@ -1191,9 +1300,9 @@ def cmd_calibrate(args: argparse.Namespace):
 def build_parser() -> argparse.ArgumentParser:
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output machine-readable JSON")
-    common_parser.add_argument("--host", default=argparse.SUPPRESS, help="Router IP/Host (default: http://192.168.1.1)")
-    common_parser.add_argument("--username", default=argparse.SUPPRESS, help="Admin username (default: admin)")
-    common_parser.add_argument("--password", default=argparse.SUPPRESS, help="Admin password (overrides stored config)")
+    common_parser.add_argument("--host", nargs="?", const="SHOW", default=argparse.SUPPRESS, help="Router IP/Host (default: http://192.168.1.1)")
+    common_parser.add_argument("--username", nargs="?", const="SHOW", default=argparse.SUPPRESS, help="Admin username (default: admin)")
+    common_parser.add_argument("--password", nargs="?", const="PROMPT", default=argparse.SUPPRESS, help="Admin password (overrides stored config)")
     common_parser.add_argument("--cookie", "--session-id", dest="cookie", nargs="?", const="PROMPT", default=argparse.SUPPRESS, help="Browser session cookie (JSESSIONID or Netscape format)")
     common_parser.add_argument("--force", action="store_true", default=argparse.SUPPRESS, help="Bypass Network Guard checks")
 
@@ -1225,19 +1334,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_dns = subparsers.add_parser("dns", parents=[common_parser], help="Manage router DNS settings")
     dns_sub = p_dns.add_subparsers(dest="action")
     dns_set = dns_sub.add_parser("set", parents=[common_parser], help="Set DNS servers")
-    dns_set.add_argument("primary", help="Primary DNS (e.g. 8.8.8.8)")
+    dns_set.add_argument("primary", nargs="?", help="Primary DNS (e.g. 8.8.8.8)")
     dns_set.add_argument("secondary", nargs="?", default="1.1.1.1", help="Secondary DNS")
     dns_show = dns_sub.add_parser("show", parents=[common_parser], help="Show current DNS")
     p_dns.set_defaults(func=cmd_dns)
 
     # ipv6
     p_ipv6 = subparsers.add_parser("ipv6", parents=[common_parser], help="Toggle IPv6 stack (on/off)")
-    p_ipv6.add_argument("state", choices=["on", "off", "enable", "disable"], help="State to set")
+    p_ipv6.add_argument("state", nargs="?", choices=["on", "off", "enable", "disable"], help="State to set (if omitted, shows current status)")
     p_ipv6.set_defaults(func=cmd_ipv6)
 
     # ussd
     p_ussd = subparsers.add_parser("ussd", parents=[common_parser], help="Execute USSD query (e.g. *344# or *123#)")
-    p_ussd.add_argument("code", help="USSD string")
+    p_ussd.add_argument("code", nargs="?", help="USSD string (e.g. *344# or *123#)")
     p_ussd.set_defaults(func=cmd_ussd)
 
     # sms
@@ -1249,8 +1358,8 @@ def build_parser() -> argparse.ArgumentParser:
     sms_list.add_argument("--limit", type=int, default=10, help="Max messages to fetch")
     sms_list.add_argument("--folder", choices=["inbox", "sent"], default="inbox", help="SMS folder")
     sms_send = sms_sub.add_parser("send", parents=[common_parser], help="Send SMS")
-    sms_send.add_argument("recipient", help="Phone number")
-    sms_send.add_argument("message", help="Message text")
+    sms_send.add_argument("recipient", nargs="?", help="Phone number")
+    sms_send.add_argument("message", nargs="?", help="Message text")
     p_sms.set_defaults(func=cmd_sms)
 
     # reboot
@@ -1298,10 +1407,10 @@ def build_parser() -> argparse.ArgumentParser:
     resv_list = resv_sub.add_parser("list", parents=[common_parser], help="List all reservations")
     resv_list.set_defaults(func=cmd_reservation)
     resv_add = resv_sub.add_parser("add", parents=[common_parser], help="Add DHCP static reservation")
-    resv_add.add_argument("mac", help="Device MAC address")
-    resv_add.add_argument("ip", help="Reserved IP address")
+    resv_add.add_argument("mac", nargs="?", help="Device MAC address")
+    resv_add.add_argument("ip", nargs="?", help="Reserved IP address")
     resv_del = resv_sub.add_parser("del", parents=[common_parser], help="Delete DHCP reservation")
-    resv_del.add_argument("mac", help="Device MAC address to remove")
+    resv_del.add_argument("mac", nargs="?", help="Device MAC address to remove")
     p_resv.set_defaults(func=cmd_reservation)
 
     # data-limit
@@ -1367,14 +1476,14 @@ def build_parser() -> argparse.ArgumentParser:
     pf_list = pf_sub.add_parser("list", parents=[common_parser], help="List all port forwarding rules")
     pf_list.set_defaults(func=cmd_port_forward)
     pf_add = pf_sub.add_parser("add", parents=[common_parser], help="Add a new port forwarding rule")
-    pf_add.add_argument("name", help="Service or application name (e.g. web, ssh)")
-    pf_add.add_argument("ext_port", help="External incoming WAN port (e.g. 8080)")
-    pf_add.add_argument("int_ip", help="Internal target device IP (e.g. 192.168.1.150)")
+    pf_add.add_argument("name", nargs="?", help="Service or application name (e.g. web, ssh)")
+    pf_add.add_argument("ext_port", nargs="?", help="External incoming WAN port (e.g. 8080)")
+    pf_add.add_argument("int_ip", nargs="?", help="Internal target device IP (e.g. 192.168.1.150)")
     pf_add.add_argument("int_port", nargs="?", help="Internal destination port (defaults to ext_port)")
     pf_add.add_argument("--proto", choices=["TCP", "UDP", "ALL"], default="ALL", help="Transport protocol (default: ALL)")
     pf_add.set_defaults(func=cmd_port_forward)
     pf_del = pf_sub.add_parser("del", parents=[common_parser], help="Delete port forwarding rule")
-    pf_del.add_argument("stack", help="Rule stack ID to remove (e.g. 2,1,1,1,0,0)")
+    pf_del.add_argument("stack", nargs="?", help="Rule stack ID to remove (e.g. 2,1,1,1,0,0)")
     pf_del.set_defaults(func=cmd_port_forward)
     p_pf.set_defaults(func=cmd_port_forward)
 
@@ -1428,16 +1537,70 @@ def main(args=None):
         if not hasattr(parsed_args, _k):
             setattr(parsed_args, _k, _v)
 
-    if hasattr(parsed_args, "func"):
+    # Handle --password PROMPT
+    if parsed_args.password == "PROMPT":
+        import getpass
         try:
-            parsed_args.func(parsed_args)
-        except KeyboardInterrupt:
-            print("\n\033[93m[Aborted] Operation cancelled by user.\033[0m")
+            parsed_args.password = getpass.getpass("Enter router admin password: ")
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted.")
             sys.exit(130)
-        except Exception as e:
-            sys.exit(handle_cli_error(e, parsed_args))
-    else:
+
+    # If no subcommand given, check for top-level options passed without command
+    if not hasattr(parsed_args, "func"):
+        cfg_mgr = ConfigManager()
+        cfg = cfg_mgr.load()
+
+        if parsed_args.host == "SHOW":
+            if parsed_args.json:
+                print(json.dumps({"target_host": cfg.get("host", "http://192.168.1.1")}))
+            else:
+                print("\n" + "=" * 55)
+                print("  \033[1mTARGET ROUTER HOST\033[0m")
+                print("=" * 55)
+                print(f"Current Target Host : \033[1m{cfg.get('host', 'http://192.168.1.1')}\033[0m")
+                print("-" * 55)
+                print("To configure default host:")
+                print("  tplink-cli config set-host http://192.168.0.1")
+                print("Or pass per-command:")
+                print("  tplink-cli --host http://192.168.1.1 <command>")
+                print("=======================================================\n")
+            return 0
+
+        if parsed_args.username == "SHOW":
+            if parsed_args.json:
+                print(json.dumps({"username": cfg.get("username", "admin")}))
+            else:
+                print(f"Current Router Username : {cfg.get('username', 'admin')}")
+            return 0
+
+        if parsed_args.cookie == "PROMPT":
+            c = cfg.get("session_cookie")
+            if c:
+                masked = f"{c[:6]}...{c[-6:]}" if len(c) > 12 else c
+                print(f"\n\033[1mActive Browser Session Cookie:\033[0m {masked}")
+            else:
+                print("\n\033[93mNo browser session cookie currently stored.\033[0m")
+            print("To store a new session cookie:")
+            print("  tplink-cli cookie <cookie_string_or_jsessionid>\n")
+            return 0
+
         parser.print_help()
+        return 0
+
+    # If subcommand IS given, but user passed bare --host or --username without value, normalize
+    if parsed_args.host == "SHOW":
+        parsed_args.host = None
+    if parsed_args.username == "SHOW":
+        parsed_args.username = None
+
+    try:
+        parsed_args.func(parsed_args)
+    except KeyboardInterrupt:
+        print("\n\033[93m[Aborted] Operation cancelled by user.\033[0m")
+        sys.exit(130)
+    except Exception as e:
+        sys.exit(handle_cli_error(e, parsed_args))
 
 
 def handle_cli_error(e: Exception, args: Optional[argparse.Namespace] = None) -> int:

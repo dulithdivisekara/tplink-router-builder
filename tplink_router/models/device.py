@@ -24,6 +24,8 @@ class RFMetrics:
 
     @property
     def rsrp_rating(self) -> str:
+        if self.rsrp_dbm == 0 or self.rsrp_dbm < -140:
+            return "N/A"
         if self.rsrp_dbm >= -85:
             return "Excellent"
         elif self.rsrp_dbm >= -95:
@@ -34,6 +36,8 @@ class RFMetrics:
 
     @property
     def rsrq_rating(self) -> str:
+        if self.rsrq_db == 0 or self.rsrq_db < -30:
+            return "N/A"
         if self.rsrq_db >= -9:
             return "Excellent"
         elif self.rsrq_db >= -12:
@@ -44,6 +48,8 @@ class RFMetrics:
 
     @property
     def snr_rating(self) -> str:
+        if self.snr_db == 0 and self.rsrp_dbm == 0:
+            return "N/A"
         if self.snr_db >= 13:
             return "Excellent"
         elif self.snr_db >= 7:
@@ -51,6 +57,18 @@ class RFMetrics:
         elif self.snr_db >= 0:
             return "Fair"
         return "Poor / High Noise"
+
+    @property
+    def rssi_rating(self) -> str:
+        if self.rssi_dbm == 0 or self.rssi_dbm < -120:
+            return "N/A"
+        if self.rssi_dbm >= -65:
+            return "Excellent"
+        elif self.rssi_dbm >= -75:
+            return "Good"
+        elif self.rssi_dbm >= -85:
+            return "Fair"
+        return "Poor"
 
 
 @dataclass
