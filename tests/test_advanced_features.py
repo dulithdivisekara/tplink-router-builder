@@ -174,6 +174,204 @@ class TestAdvancedMRFeatures(unittest.TestCase):
                 self.assertIn(40, b_cfg["supported_bands"])
                 self.assertEqual(b_cfg["connected_band"], "Band 8 (900 MHz)")
 
+    def test_system_logs(self):
+        sample_log_raw = (
+            "2026-10-29 10:48:54 [6] 4G: LTE connected\n"
+            "2026-10-29 10:49:41 [6] System: User logged in\n"
+        )
+        self.client.auth.aes_key = b"0123456789abcdef"
+        mock_resp = MagicMock(status_code=200, text="raw_aes")
+        with patch.object(self.client.session, "get", return_value=mock_resp) as mock_get, \
+             patch.object(self.client.auth, "decrypt_gdpr_data", return_value=sample_log_raw):
+            logs = self.client.get_system_logs()
+            self.assertEqual(len(logs), 2)
+            self.assertEqual(logs[0].module, "4G")
+            self.assertEqual(logs[0].level_name, "INFO")
+            self.assertEqual(logs[0].message, "LTE connected")
+
+        with patch.object(self.client.session, "get", return_value=MagicMock(status_code=200)) as mock_get:
+            self.client.clear_system_logs()
+            mock_get.assert_called_once()
+            self.assertIn("/cgi/log?clr", mock_get.call_args[0][0])
+
+    def test_guest_wifi(self):
+        mock_mssid = {
+            "0": [
+                {"__stack": "1,1,1,0,0,0", "enable": "1", "SSID": "Guest_2.4G", "beaconType": "11i", "isolateClients": "0"},
+                {"__stack": "1,2,1,0,0,0", "enable": "0", "SSID": "Guest_5G", "beaconType": "Basic", "isolateClients": "0"}
+            ]
+        }
+        mock_guest = {"0": [{"LANAccessEnable": "0"}]}
+        with patch.object(self.client, "req_act", side_effect=[mock_mssid, mock_guest, {}]) as mock_req:
+            gw = self.client.get_guest_wifi()
+            self.assertFalse(gw.allow_lan_access)
+            self.assertEqual(len(gw.networks), 2)
+            self.assertTrue(gw.networks[0].enabled)
+            self.assertEqual(gw.networks[0].ssid, "Guest_2.4G")
+            self.assertEqual(gw.networks[0].security, "WPA/WPA2-PSK")
+            self.assertFalse(gw.networks[1].enabled)
+
+            self.client.set_guest_wifi(band="2.4GHz", enabled=True, ssid="NewGuest", password="Password123")
+            all_acts = [act for call in mock_req.call_args_list for act in call[0][0]]
+            mssid_call = next((a for a in all_acts if a.oid == "LAN_WLAN_MSSIDENTRY" and a.type == a.SET), None)
+            self.assertIsNotNone(mssid_call)
+            self.assertIn("SSID=NewGuest", mssid_call.attrs)
+
+    def test_port_forwarding(self):
+        mock_wan = {"0": [{"__stack": "2,1,1,0,0,0", "enable": "1"}]}
+        mock_pm = {
+            "0": [
+                {
+                    "__stack": "2,1,1,1,0,0",
+                    "PortMappingDescription": "web",
+                    "externalPort": "8080",
+                    "internalPort": "80",
+                    "internalClient": "192.168.1.150",
+                    "portMappingProtocol": "TCP",
+                    "portMappingEnabled": "1",
+                }
+            ]
+        }
+        with patch.object(self.client, "req_act", side_effect=[mock_wan, mock_pm, {}, {}]) as mock_req:
+            rules = self.client.get_port_forwarding()
+            self.assertEqual(len(rules), 1)
+            self.assertEqual(rules[0].name, "web")
+            self.assertEqual(rules[0].external_port, "8080")
+            self.assertEqual(rules[0].internal_port, "80")
+            self.assertEqual(rules[0].internal_ip, "192.168.1.150")
+            self.assertEqual(rules[0].protocol, "TCP")
+
+            # Add port forwarding
+            self.client.add_port_forwarding("ssh", "2222", "192.168.1.100", "22", "TCP")
+            add_call = mock_req.call_args_list[2][0][0][0]
+            self.assertEqual(add_call.type, ActItem.ADD)
+            self.assertEqual(add_call.oid, "WAN_IP_CONN_PORTMAPPING")
+            self.assertIn("externalPort=2222", add_call.attrs)
+
+            # Delete port forwarding
+            self.client.del_port_forwarding("2,1,1,1,0,0")
+            del_call = mock_req.call_args_list[3][0][0][0]
+            self.assertEqual(del_call.type, ActItem.DEL)
+            self.assertEqual(del_call.stack, "2,1,1,1,0,0")
+
+    def test_dmz(self):
+        mock_data = {"0": {"enable": "1", "IPAddress": "192.168.1.120"}}
+        with patch.object(self.client, "req_act", return_value=mock_data) as mock_req:
+            dmz = self.client.get_dmz()
+            self.assertTrue(dmz.enabled)
+            self.assertEqual(dmz.ip_address, "192.168.1.120")
+
+            self.client.set_dmz(enabled=False)
+            set_call = mock_req.call_args[0][0][0]
+            self.assertEqual(set_call.oid, "DMZ_HOST_CFG")
+            self.assertIn("enable=0", set_call.attrs)
+
+    def test_upnp(self):
+        mock_cfg = {"0": {"enable": "1"}}
+        mock_maps = {
+            "0": [
+                {
+                    "__stack": "1,0,0,0,0,0",
+                    "PortMappingDescription": "Skype",
+                    "externalPort": "45678",
+                    "internalPort": "45678",
+                    "internalClient": "192.168.1.50",
+                    "portMappingProtocol": "UDP",
+                    "portMappingEnabled": "1",
+                }
+            ]
+        }
+        with patch.object(self.client, "req_act", side_effect=[mock_cfg, mock_maps, {}]) as mock_req:
+            upnp = self.client.get_upnp()
+            self.assertTrue(upnp.enabled)
+            self.assertEqual(len(upnp.mappings), 1)
+            self.assertEqual(upnp.mappings[0].description, "Skype")
+
+            self.client.set_upnp(enabled=False)
+            set_call = mock_req.call_args[0][0][0]
+            self.assertEqual(set_call.oid, "UPNP_CFG")
+            self.assertIn("enable=0", set_call.attrs)
+
+    def test_reboot_schedule(self):
+        mock_data = {
+            "0": {
+                "enable": "1",
+                "mode": "1",
+                "hours": "3",
+                "minutes": "30",
+                "day": "1",
+                "week": "1",
+            }
+        }
+        with patch.object(self.client, "req_act", return_value=mock_data) as mock_req:
+            rs = self.client.get_reboot_schedule()
+            self.assertTrue(rs.enabled)
+            self.assertEqual(rs.hours, 3)
+            self.assertEqual(rs.minutes, 30)
+            self.assertEqual(rs.mode, "daily")
+
+            self.client.set_reboot_schedule(enabled=True, hours=4, minutes=15, mode="weekly", day_of_week=5)
+            set_call = mock_req.call_args[0][0][0]
+            self.assertEqual(set_call.oid, "REBOOT_SCHEDULE_CFG")
+            self.assertIn("hours=4", set_call.attrs)
+            self.assertIn("minutes=15", set_call.attrs)
+            self.assertIn("mode=2", set_call.attrs)
+            self.assertIn("day=5", set_call.attrs)
+
+    def test_time_and_ddns_and_fw(self):
+        mock_time = {
+            "0": {
+                "currentLocalTime": "2026-10-29 10:00:00",
+                "localTimeZone": "+05:30",
+                "daylightSavingsUsed": "0",
+                "NTPServer1": "time.nist.gov",
+                "NTPServer2": "pool.ntp.org",
+            }
+        }
+        with patch.object(self.client, "req_act", return_value=mock_time) as mock_req:
+            t = self.client.get_time_config()
+            self.assertEqual(t.current_time, "2026-10-29 10:00:00")
+            self.assertEqual(t.timezone, "+05:30")
+            self.assertEqual(t.ntp_server1, "time.nist.gov")
+
+            self.client.sync_time()
+            sync_call = mock_req.call_args[0][0][0]
+            self.assertEqual(sync_call.type, ActItem.OP)
+            self.assertEqual(sync_call.oid, "ACT_OP_NTP_REQUEST")
+
+        mock_op = {
+            "0": {"mode": "LTE", "lteBackupEnable": "0", "LTEDataSwitch": "1"}
+        }
+        with patch.object(self.client, "req_act", return_value=mock_op):
+            op = self.client.get_operation_mode()
+            self.assertEqual(op.mode, "3G/4G Router Mode")
+            self.assertFalse(op.lte_backup_enabled)
+            self.assertTrue(op.cellular_data_switch)
+
+        mock_ddns = {
+            "0": {"enable": "1", "state": "0", "userDomain": "test.no-ip.org", "userName": "testuser"},
+        }
+        with patch.object(self.client, "req_act", return_value=mock_ddns):
+            ddns_list = self.client.get_ddns_status()
+            self.assertTrue(len(ddns_list) >= 1)
+            self.assertEqual(ddns_list[0].provider, "No-IP")
+            self.assertTrue(ddns_list[0].enabled)
+            self.assertEqual(ddns_list[0].domain, "test.no-ip.org")
+
+        mock_fw = {
+            "0": {
+                "version": "1.4.0 0.9.1 v0001.0 Build 250916 Rel.67755n",
+                "status": "0",
+            }
+        }
+        with patch.object(self.client, "get_device_info") as mock_info, \
+             patch.object(self.client, "req_act", return_value=mock_fw):
+            from tplink_router.models.device import DeviceInfo
+            mock_info.return_value = DeviceInfo(model="Archer MR200", firmware_version="1.4.0 0.9.1 v0001.0 Build 250916 Rel.67755n")
+            fw = self.client.check_firmware_update()
+            self.assertFalse(fw.has_update)
+            self.assertEqual(fw.current_version, "1.4.0 0.9.1 v0001.0 Build 250916 Rel.67755n")
+
 
 if __name__ == "__main__":
     unittest.main()

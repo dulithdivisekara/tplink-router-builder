@@ -11,6 +11,11 @@ from tplink_router.models.device import (
     DeviceInfo, RFMetrics, CellLockStatus, LTEStatus, IPv4Config, IPv6Config, RouterTelemetry
 )
 from tplink_router.models.sms import SMSMessage, USSDResult
+from tplink_router.models.advanced import (
+    SystemLogEntry, GuestWiFiNetwork, GuestWiFiStatus, PortForwardRule,
+    DMZConfig, UPnPPortMapping, UPnPStatus, RebootScheduleConfig,
+    TimeConfig, OperationMode, DDNSStatus, FirmwareUpdateInfo
+)
 
 logger = logging.getLogger(__name__)
 
@@ -904,3 +909,415 @@ class TPLinkMRClient:
             pass
 
         return True
+
+    def get_system_logs(self, limit: int = 50, module: Optional[str] = None,
+                        min_level: Optional[str] = None) -> List[SystemLogEntry]:
+        """Fetches and parses decrypted kernel/system event logs."""
+        if not self.auth.is_authenticated:
+            self.login()
+        headers = {
+            "Referer": f"{self.host}/mainFrame.htm",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        }
+        if self.auth.token_id:
+            headers["TokenID"] = self.auth.token_id
+
+        resp = self.session.get(f"{self.host}/cgi/log", headers=headers, timeout=self.timeout)
+        if resp.status_code != 200:
+            raise ConnectionError(f"Router returned HTTP {resp.status_code} fetching logs")
+
+        decrypted = self.auth.decrypt_gdpr_data(resp.text) if self.auth.aes_key else resp.text
+
+        level_map = {
+            0: "EMERG", 1: "ALERT", 2: "CRIT", 3: "ERROR",
+            4: "WARN", 5: "NOTICE", 6: "INFO", 7: "DEBUG"
+        }
+        name_to_level = {v.upper(): k for k, v in level_map.items()}
+        max_level_num = name_to_level.get(min_level.upper(), 7) if min_level else 7
+
+        entries: List[SystemLogEntry] = []
+        pattern = re.compile(r"^([\d-]+\s+[\d:]+)\s+\[(\d)\]\s+([\w\s]+?):\s+(.*)$")
+
+        for line in decrypted.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            match = pattern.match(line)
+            if not match:
+                continue
+            ts, lvl_str, mod, msg = match.groups()
+            lvl = int(lvl_str)
+            if lvl > max_level_num:
+                continue
+            if module and mod.upper() != module.upper():
+                continue
+            entries.append(SystemLogEntry(
+                timestamp=ts,
+                level_num=lvl,
+                level_name=level_map.get(lvl, f"LVL{lvl}"),
+                module=mod,
+                message=msg
+            ))
+
+        return entries[-limit:]
+
+    def clear_system_logs(self) -> bool:
+        """Clears all buffered router system event logs."""
+        if not self.auth.is_authenticated:
+            self.login()
+        headers = {
+            "Referer": f"{self.host}/mainFrame.htm",
+        }
+        if self.auth.token_id:
+            headers["TokenID"] = self.auth.token_id
+        resp = self.session.get(f"{self.host}/cgi/log?clr", headers=headers, timeout=self.timeout)
+        return resp.status_code == 200
+
+    def get_guest_wifi(self) -> GuestWiFiStatus:
+        """Returns the dual-band Guest Wi-Fi configuration (2.4GHz & 5GHz)."""
+        res_mssid = self.req_act([ActItem(ActItem.GL, "LAN_WLAN_MSSIDENTRY")])
+        res_guest = self.req_act([ActItem(ActItem.GL, "LAN_WLAN_GUESTNET")])
+
+        raw_guests = res_guest.get("0", [])
+        if isinstance(raw_guests, dict):
+            raw_guests = [raw_guests]
+
+        allow_lan = False
+        if raw_guests and raw_guests[0].get("LANAccessEnable") == "1":
+            allow_lan = True
+
+        raw_mssids = res_mssid.get("0", [])
+        if isinstance(raw_mssids, dict):
+            raw_mssids = [raw_mssids]
+
+        networks: List[GuestWiFiNetwork] = []
+        for m in raw_mssids:
+            stk = m.get("__stack", "")
+            if stk == "1,1,1,0,0,0":
+                networks.append(GuestWiFiNetwork(
+                    band="2.4GHz",
+                    enabled=m.get("enable") == "1",
+                    ssid=m.get("SSID", "TP-Link_Guest"),
+                    security="WPA/WPA2-PSK" if m.get("beaconType") == "11i" else "Open",
+                    isolate_clients=m.get("isolateClients") == "1",
+                    allow_lan_access=allow_lan
+                ))
+            elif stk == "1,2,1,0,0,0":
+                networks.append(GuestWiFiNetwork(
+                    band="5GHz",
+                    enabled=m.get("enable") == "1",
+                    ssid=m.get("SSID", "TP-Link_Guest_5G"),
+                    security="WPA/WPA2-PSK" if m.get("beaconType") == "11i" else "Open",
+                    isolate_clients=m.get("isolateClients") == "1",
+                    allow_lan_access=allow_lan
+                ))
+
+        return GuestWiFiStatus(networks=networks, allow_lan_access=allow_lan)
+
+    def set_guest_wifi(self, band: str = "both", enabled: bool = True,
+                       ssid: Optional[str] = None, password: Optional[str] = None,
+                       allow_lan: Optional[bool] = None) -> bool:
+        """Configures 2.4GHz and/or 5GHz Guest Wi-Fi networks."""
+        targets = []
+        b_clean = band.lower()
+        if "2" in b_clean or "both" in b_clean:
+            targets.append(("1,1,0,0,0,0", "1,1,1,0,0,0", "2.4GHz"))
+        if "5" in b_clean or "both" in b_clean:
+            targets.append(("1,2,0,0,0,0", "1,2,1,0,0,0", "5GHz"))
+
+        acts = []
+        for g_stk, m_stk, b_name in targets:
+            g_attrs = [f"enable={'1' if enabled else '0'}"]
+            if allow_lan is not None:
+                g_attrs.append(f"LANAccessEnable={'1' if allow_lan else '0'}")
+            acts.append(ActItem(ActItem.SET, "LAN_WLAN_GUESTNET", stack=g_stk, attrs=g_attrs))
+
+            m_attrs = [f"enable={'1' if enabled else '0'}"]
+            if ssid:
+                band_suffix = "_5G" if b_name == "5GHz" and not ssid.endswith("_5G") and band == "both" else ""
+                m_attrs.append(f"SSID={escape_act_val(ssid + band_suffix)}")
+            if password is not None:
+                if password and len(password) >= 8:
+                    m_attrs.extend([
+                        "beaconType=11i",
+                        "WPAAuthenticationMode=PSKAuthentication",
+                        "IEEE11iAuthenticationMode=PSKAuthentication",
+                        f"preSharedKey={escape_act_val(password)}",
+                        "WPAEncryptionModes=TKIPandAESEncryption",
+                        "IEEE11iEncryptionModes=TKIPandAESEncryption"
+                    ])
+                else:
+                    m_attrs.extend(["beaconType=Basic", "basicEncryptionModes=None", "preSharedKey="])
+            acts.append(ActItem(ActItem.SET, "LAN_WLAN_MSSIDENTRY", stack=m_stk, attrs=m_attrs))
+
+        self.req_act(acts)
+        return True
+
+    def get_port_forwarding(self) -> List[PortForwardRule]:
+        """Lists active NAT virtual server port forwarding rules."""
+        wan_stack = "2,1,1,0,0,0"
+        try:
+            res_wan = self.req_act([ActItem(ActItem.GL, "WAN_IP_CONN")])
+            raw_wans = res_wan.get("0", [])
+            if isinstance(raw_wans, dict):
+                raw_wans = [raw_wans]
+            for w in raw_wans:
+                if w.get("enable") == "1" and w.get("__stack"):
+                    wan_stack = w["__stack"]
+                    break
+        except Exception:
+            pass
+
+        try:
+            res = self.req_act([ActItem(ActItem.GL, "WAN_IP_CONN_PORTMAPPING", pstack=wan_stack)])
+            raw_rules = res.get("0", [])
+            if isinstance(raw_rules, dict):
+                raw_rules = [raw_rules]
+            rules: List[PortForwardRule] = []
+            for idx, r in enumerate(raw_rules):
+                if not r.get("__stack"):
+                    continue
+                rules.append(PortForwardRule(
+                    index=idx + 1,
+                    name=r.get("PortMappingDescription") or r.get("name") or f"rule_{idx+1}",
+                    external_port=str(r.get("externalPort") or ""),
+                    internal_port=str(r.get("internalPort") or ""),
+                    internal_ip=r.get("internalClient") or "",
+                    protocol=r.get("portMappingProtocol") or "ALL",
+                    enabled=r.get("portMappingEnabled") == "1",
+                ))
+            return rules
+        except Exception as e:
+            logger.debug(f"Failed to query port forwarding: {e}")
+            return []
+
+    def add_port_forwarding(self, name: str, external_port: Union[int, str], internal_ip: str,
+                            internal_port: Optional[Union[int, str]] = None,
+                            protocol: str = "ALL") -> bool:
+        """Adds a new NAT virtual server port forwarding rule."""
+        wan_stack = "2,1,1,0,0,0"
+        int_port = internal_port or external_port
+        proto = protocol.upper()
+        if proto not in ("TCP", "UDP", "ALL"):
+            proto = "ALL"
+
+        attrs = [
+            f"PortMappingDescription={escape_act_val(name)}",
+            f"externalPort={external_port}",
+            f"X_TP_ExternalPortEnd={external_port}",
+            f"internalPort={int_port}",
+            f"X_TP_InternalPortEnd={int_port}",
+            f"internalClient={internal_ip}",
+            f"portMappingProtocol={proto}",
+            "portMappingEnabled=1",
+        ]
+        self.req_act([ActItem(ActItem.ADD, "WAN_IP_CONN_PORTMAPPING", pstack=wan_stack, attrs=attrs)])
+        return True
+
+    def del_port_forwarding(self, rule_stack: str) -> bool:
+        """Deletes a port forwarding rule by stack ID (e.g. '2,1,1,1,0,0')."""
+        self.req_act([ActItem(ActItem.DEL, "WAN_IP_CONN_PORTMAPPING", stack=rule_stack)])
+        return True
+
+    def get_dmz(self) -> DMZConfig:
+        """Returns DMZ Host configuration."""
+        res = self.req_act([ActItem(ActItem.GET, "DMZ_HOST_CFG")])
+        raw = res.get("0", {})
+        data = raw[0] if isinstance(raw, list) and raw else raw
+        return DMZConfig(
+            enabled=data.get("enable") == "1",
+            ip_address=data.get("IPAddress", "")
+        )
+
+    def set_dmz(self, enabled: bool, ip_address: str = "") -> bool:
+        """Enables or disables DMZ host forwarding to an internal IP address."""
+        attrs = [
+            f"enable={'1' if enabled else '0'}",
+            f"IPAddress={ip_address if enabled else ''}"
+        ]
+        self.req_act([ActItem(ActItem.SET, "DMZ_HOST_CFG", attrs=attrs)])
+        return True
+
+    def get_upnp(self) -> UPnPStatus:
+        """Returns UPnP status and active dynamic port mappings."""
+        res_cfg = self.req_act([ActItem(ActItem.GET, "UPNP_CFG")])
+        raw_cfg = res_cfg.get("0", {})
+        cfg_data = raw_cfg[0] if isinstance(raw_cfg, list) and raw_cfg else raw_cfg
+        is_enabled = cfg_data.get("enable") == "1"
+
+        mappings: List[UPnPPortMapping] = []
+        try:
+            res_maps = self.req_act([ActItem(ActItem.GL, "UPNP_PORTMAPPING")])
+            raw_maps = res_maps.get("0", [])
+            if isinstance(raw_maps, dict):
+                raw_maps = [raw_maps]
+            for m in raw_maps:
+                if not m.get("__stack"):
+                    continue
+                mappings.append(UPnPPortMapping(
+                    protocol=m.get("portMappingProtocol", "TCP"),
+                    external_port=int(m.get("externalPort", 0)),
+                    internal_ip=m.get("internalClient", ""),
+                    internal_port=int(m.get("internalPort", 0)),
+                    description=m.get("PortMappingDescription", ""),
+                    enabled=m.get("portMappingEnabled") == "1"
+                ))
+        except Exception:
+            pass
+
+        return UPnPStatus(enabled=is_enabled, mappings=mappings)
+
+    def set_upnp(self, enabled: bool) -> bool:
+        """Enables or disables Universal Plug and Play (UPnP)."""
+        self.req_act([ActItem(ActItem.SET, "UPNP_CFG", attrs=[f"enable={'1' if enabled else '0'}"])])
+        return True
+
+    def get_reboot_schedule(self) -> RebootScheduleConfig:
+        """Returns automated router reboot schedule."""
+        res = self.req_act([ActItem(ActItem.GET, "REBOOT_SCHEDULE_CFG")])
+        raw = res.get("0", {})
+        data = raw[0] if isinstance(raw, list) and raw else raw
+
+        days = {0: "Sunday", 1: "Monday", 2: "Tuesday", 3: "Wednesday", 4: "Thursday", 5: "Friday", 6: "Saturday", 7: "Sunday"}
+        mode_val = data.get("mode", "1")
+        mode_name = "weekly" if mode_val == "2" else ("monthly" if mode_val == "3" else "daily")
+        day_num = int(data.get("week") or data.get("day") or 1)
+
+        return RebootScheduleConfig(
+            enabled=data.get("enable") == "1",
+            mode=mode_name,
+            hours=int(data.get("hours", 3)),
+            minutes=int(data.get("minutes", 0)),
+            day_of_week=day_num,
+            day_name=days.get(day_num, "Monday")
+        )
+
+    def set_reboot_schedule(self, enabled: bool, hours: int = 3, minutes: int = 0,
+                            mode: str = "daily", day_of_week: int = 1) -> bool:
+        """Configures automated periodic router reboot schedule."""
+        mode_num = "2" if mode.lower() == "weekly" else ("3" if mode.lower() == "monthly" else "1")
+        attrs = [
+            f"enable={'1' if enabled else '0'}",
+            f"mode={mode_num}",
+            f"hours={hours}",
+            f"minutes={minutes}",
+            f"day={day_of_week}",
+            f"week={day_of_week}",
+        ]
+        self.req_act([ActItem(ActItem.SET, "REBOOT_SCHEDULE_CFG", attrs=attrs)])
+        return True
+
+    def get_time_config(self) -> TimeConfig:
+        """Returns router system time, timezone, and NTP configuration."""
+        res = self.req_act([ActItem(ActItem.GET, "TIME")])
+        raw = res.get("0", {})
+        data = raw[0] if isinstance(raw, list) and raw else raw
+
+        return TimeConfig(
+            current_time=data.get("currentLocalTime", ""),
+            timezone=data.get("localTimeZone", ""),
+            daylight_savings=data.get("daylightSavingsUsed") == "1",
+            ntp_server1=data.get("NTPServer1", ""),
+            ntp_server2=data.get("NTPServer2", "")
+        )
+
+    def sync_time(self) -> bool:
+        """Synchronizes router system clock via NTP."""
+        try:
+            self.req_act([ActItem(ActItem.OP, "ACT_OP_NTP_REQUEST")])
+            return True
+        except Exception:
+            return False
+
+    def get_operation_mode(self) -> OperationMode:
+        """Returns the current operation mode (3G/4G Router vs Wireless Router)."""
+        res = self.req_act([ActItem(ActItem.GET, "SYS_MODE")])
+        raw = res.get("0", {})
+        data = raw[0] if isinstance(raw, list) and raw else raw
+
+        raw_mode = data.get("mode", "LTE")
+        friendly = "3G/4G Router Mode" if raw_mode == "LTE" else "Wireless Router Mode (Ethernet WAN)"
+
+        return OperationMode(
+            mode=friendly,
+            raw_mode=raw_mode,
+            lte_backup_enabled=data.get("lteBackupEnable") == "1",
+            cellular_data_switch=data.get("LTEDataSwitch") == "1"
+        )
+
+    def get_ddns_status(self) -> List[DDNSStatus]:
+        """Returns configured Dynamic DNS (DDNS) providers and status."""
+        providers = []
+        try:
+            r_noip = self.req_act([ActItem(ActItem.GET, "NOIP_DNS_CFG")])
+            data = r_noip.get("0", {})
+            if isinstance(data, list) and data:
+                data = data[0]
+            state_map = {"0": "Connected", "1": "Connecting", "2": "Auth Error", "3": "Disconnected"}
+            providers.append(DDNSStatus(
+                provider="No-IP",
+                enabled=data.get("enable") == "1",
+                domain=data.get("userDomain", ""),
+                username=data.get("userName", ""),
+                status=state_map.get(data.get("state", "3"), "Unknown")
+            ))
+        except Exception:
+            pass
+
+        try:
+            r_dyn = self.req_act([ActItem(ActItem.GET, "DYN_DNS_CFG")])
+            data = r_dyn.get("0", {})
+            if isinstance(data, list) and data:
+                data = data[0]
+            state_map = {"0": "Connected", "1": "Connecting", "2": "Auth Error", "3": "Disconnected"}
+            providers.append(DDNSStatus(
+                provider="DynDNS",
+                enabled=data.get("enable") == "1",
+                domain=data.get("userDomain", ""),
+                username=data.get("userName", ""),
+                status=state_map.get(data.get("state", "3"), "Unknown")
+            ))
+        except Exception:
+            pass
+
+        try:
+            r_tp = self.req_act([ActItem(ActItem.GET, "CLOUD_DDNS")])
+            data = r_tp.get("0", {})
+            if isinstance(data, list) and data:
+                data = data[0]
+            providers.append(DDNSStatus(
+                provider="TP-Link Cloud DDNS",
+                enabled=data.get("enable") == "1",
+                domain=data.get("boundDomain", ""),
+                username="TP-Link ID",
+                status="Connected" if data.get("boundDomain") else "Unbound"
+            ))
+        except Exception:
+            pass
+
+        return providers
+
+    def check_firmware_update(self) -> FirmwareUpdateInfo:
+        """Checks for official online firmware updates via TP-Link Cloud."""
+        dev_info = self.get_device_info()
+        cur_ver = dev_info.firmware_version
+
+        try:
+            self.req_act([ActItem(ActItem.OP, "ACT_CLOUD_CHECKNEWFWINFO_BY_USER")])
+        except Exception:
+            pass
+
+        res = self.req_act([ActItem(ActItem.GET, "FW_UPGRADE_INFO")])
+        raw = res.get("0", {})
+        data = raw[0] if isinstance(raw, list) and raw else raw
+
+        latest = data.get("version", "")
+        has_new = bool(latest and latest != cur_ver and data.get("status") in ("1", "3"))
+
+        return FirmwareUpdateInfo(
+            current_version=cur_ver,
+            has_update=has_new,
+            latest_version=latest or cur_ver,
+            release_date=data.get("releaseDate", ""),
+            release_log=data.get("releaseLog", data.get("informMessage", ""))
+        )

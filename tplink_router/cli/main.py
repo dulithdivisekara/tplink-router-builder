@@ -706,6 +706,422 @@ def cmd_band(args: argparse.Namespace):
     print("\033[90mCellular modem is retuning RF hardware. Signal LEDs will cycle.\033[0m")
 
 
+def cmd_logs(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_system_logs"):
+            print("System logs are only supported on MR cellular models.")
+            return
+
+        if getattr(args, "clear", False):
+            client.clear_system_logs()
+            if getattr(args, "json", False):
+                print(json.dumps({"cleared": True}))
+            else:
+                print("\033[92m✓ System event logs successfully cleared.\033[0m")
+            return
+
+        limit = getattr(args, "lines", 30) or 30
+        module = getattr(args, "module", None)
+        min_level = getattr(args, "level", None)
+
+        logs = client.get_system_logs(limit=limit, module=module, min_level=min_level)
+
+        if getattr(args, "json", False):
+            print(json.dumps([{
+                "timestamp": l.timestamp,
+                "level": l.level_name,
+                "module": l.module,
+                "message": l.message
+            } for l in logs], indent=2))
+            return
+
+        print("\n" + "=" * 78)
+        print("  \033[1mROUTER SYSTEM & CELLULAR EVENT LOGS\033[0m")
+        print("=" * 78)
+        if not logs:
+            print("  (No log entries found matching criteria)")
+        else:
+            lvl_colors = {
+                "EMERG": "\033[91m", "ALERT": "\033[91m", "CRIT": "\033[91m", "ERROR": "\033[91m",
+                "WARN": "\033[93m", "NOTICE": "\033[96m", "INFO": "\033[37m", "DEBUG": "\033[90m"
+            }
+            for l in logs:
+                c = lvl_colors.get(l.level_name, "")
+                print(f"[{l.timestamp}] {c}[{l.level_name:<5}]\033[0m \033[1m{l.module:<8}\033[0m : {l.message}")
+        print("-" * 78)
+        print(f"Showing {len(logs)} entries. Filter with: tplink-cli logs --lines 50 --module 4G --level ERROR")
+        print("=" * 78 + "\n")
+
+
+def cmd_guest_wifi(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_guest_wifi"):
+            print("Guest Wi-Fi is only supported on MR cellular models.")
+            return
+
+        toggle = getattr(args, "toggle", None)
+        band = getattr(args, "band", "both")
+        ssid = getattr(args, "ssid", None)
+        password = getattr(args, "guest_password", None) or getattr(args, "key", None)
+        allow_lan = getattr(args, "allow_lan", None)
+
+        if toggle or ssid or password or allow_lan is not None:
+            is_en = toggle in ("on", "enable") if toggle else True
+            client.set_guest_wifi(band=band, enabled=is_en, ssid=ssid, password=password, allow_lan=allow_lan)
+            action_desc = f"{'enabled' if is_en else 'disabled'}"
+            if ssid:
+                action_desc += f", SSID set to '{ssid}'"
+            print(f"\033[92m✓ Guest Wi-Fi ({band}) successfully {action_desc}.\033[0m")
+            return
+
+        gw = client.get_guest_wifi()
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "allow_lan_access": gw.allow_lan_access,
+                "networks": [{
+                    "band": n.band,
+                    "enabled": n.enabled,
+                    "ssid": n.ssid,
+                    "security": n.security,
+                    "isolate_clients": n.isolate_clients
+                } for n in gw.networks]
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 60)
+        print("  \033[1mDUAL-BAND GUEST WI-FI NETWORKS\033[0m")
+        print("=" * 60)
+        print(f"Local Network Access : \033[1m{'Allowed' if gw.allow_lan_access else 'Isolated (Secure)'}\033[0m")
+        print("-" * 60)
+        for net in gw.networks:
+            en_str = "\033[92mENABLED\033[0m" if net.enabled else "\033[90mDISABLED\033[0m"
+            print(f"\033[1m{net.band:<7}\033[0m : {en_str}")
+            print(f"  SSID     : \033[1m{net.ssid}\033[0m")
+            print(f"  Security : {net.security}")
+            print("-" * 60)
+        print("To configure Guest Wi-Fi:")
+        print("  tplink-cli guest-wifi --toggle on --ssid GuestNetwork --password GuestPass123")
+        print("  tplink-cli guest-wifi --toggle off")
+        print("=" * 60 + "\n")
+
+
+def cmd_port_forward(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_port_forwarding"):
+            print("Port forwarding is only supported on MR cellular models.")
+            return
+
+        action = getattr(args, "subcommand", None) or "list"
+        if action == "add":
+            name = args.name
+            ext_port = args.ext_port
+            int_ip = args.int_ip
+            int_port = getattr(args, "int_port", None) or ext_port
+            proto = getattr(args, "proto", "ALL")
+            client.add_port_forwarding(name=name, external_port=ext_port, internal_ip=int_ip, internal_port=int_port, protocol=proto)
+            print(f"\033[92m✓ Port forwarding rule '{name}' added: Port {ext_port} -> {int_ip}:{int_port} ({proto})\033[0m")
+            return
+        elif action == "del":
+            stack = args.stack
+            client.del_port_forwarding(rule_stack=stack)
+            print(f"\033[92m✓ Port forwarding rule at stack '{stack}' deleted.\033[0m")
+            return
+
+        rules = client.get_port_forwarding()
+        if getattr(args, "json", False):
+            print(json.dumps([{
+                "index": r.index,
+                "name": r.name,
+                "external_port": r.external_port,
+                "internal_ip": r.internal_ip,
+                "internal_port": r.internal_port,
+                "protocol": r.protocol,
+                "enabled": r.enabled
+            } for r in rules], indent=2))
+            return
+
+        print("\n" + "=" * 65)
+        print("  \033[1mNAT VIRTUAL SERVER PORT FORWARDING RULES\033[0m")
+        print("=" * 65)
+        if not rules:
+            print("  (No active port forwarding rules)")
+        else:
+            print(f"{'#':<3} {'Service Name':<18} {'Ext Port':<10} {'Internal Target':<22} {'Proto':<6} {'State'}")
+            print("-" * 65)
+            for r in rules:
+                st = "\033[92mON\033[0m" if r.enabled else "\033[90mOFF\033[0m"
+                target = f"{r.internal_ip}:{r.internal_port}"
+                print(f"{r.index:<3} {r.name:<18} {r.external_port:<10} {target:<22} {r.protocol:<6} {st}")
+        print("-" * 65)
+        print("To add a port forward rule:")
+        print("  tplink-cli port-forward add web 8080 192.168.1.150 80 --proto TCP")
+        print("=" * 65 + "\n")
+
+
+def cmd_dmz(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_dmz"):
+            print("DMZ Host is only supported on MR cellular models.")
+            return
+
+        state = getattr(args, "state", None)
+        ip = getattr(args, "ip", None)
+
+        if state or ip:
+            is_en = state in ("on", "enable") if state else bool(ip)
+            target_ip = ip or ""
+            client.set_dmz(enabled=is_en, ip_address=target_ip)
+            print(f"\033[92m✓ DMZ Host {'enabled -> ' + target_ip if is_en else 'disabled'}.\033[0m")
+            return
+
+        dmz = client.get_dmz()
+        if getattr(args, "json", False):
+            print(json.dumps({"enabled": dmz.enabled, "ip_address": dmz.ip_address}, indent=2))
+            return
+
+        print("\n" + "=" * 50)
+        print("  \033[1mDMZ HOST CONFIGURATION\033[0m")
+        print("=" * 50)
+        st = "\033[92mENABLED\033[0m" if dmz.enabled else "\033[90mDISABLED\033[0m"
+        print(f"Status        : {st}")
+        if dmz.enabled:
+            print(f"DMZ Host IP   : \033[1m{dmz.ip_address}\033[0m")
+        print("-" * 50)
+        print("To configure DMZ:")
+        print("  tplink-cli dmz on 192.168.1.100")
+        print("  tplink-cli dmz off")
+        print("=" * 50 + "\n")
+
+
+def cmd_upnp(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_upnp"):
+            print("UPnP is only supported on MR cellular models.")
+            return
+
+        toggle = getattr(args, "toggle", None)
+        if toggle:
+            is_en = toggle in ("on", "enable")
+            client.set_upnp(enabled=is_en)
+            print(f"\033[92m✓ UPnP successfully {'enabled' if is_en else 'disabled'}.\033[0m")
+            return
+
+        upnp = client.get_upnp()
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "enabled": upnp.enabled,
+                "mappings": [{
+                    "protocol": m.protocol,
+                    "external_port": m.external_port,
+                    "internal_ip": m.internal_ip,
+                    "internal_port": m.internal_port,
+                    "description": m.description,
+                    "enabled": m.enabled
+                } for m in upnp.mappings]
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 65)
+        print("  \033[1mUNIVERSAL PLUG AND PLAY (UPnP)\033[0m")
+        print("=" * 65)
+        st = "\033[92mENABLED\033[0m" if upnp.enabled else "\033[90mDISABLED\033[0m"
+        print(f"UPnP Status           : {st}")
+        print(f"Dynamic Port Mappings : {len(upnp.mappings)}")
+        print("-" * 65)
+        if upnp.mappings:
+            print(f"{'Description':<20} {'Proto':<6} {'Ext Port':<10} {'Internal Target'}")
+            print("-" * 65)
+            for m in upnp.mappings:
+                print(f"{m.description:<20} {m.protocol:<6} {m.external_port:<10} {m.internal_ip}:{m.internal_port}")
+        else:
+            print("  (No dynamic UPnP port mappings currently registered)")
+        print("-" * 65)
+        print("To toggle UPnP: tplink-cli upnp on | tplink-cli upnp off")
+        print("=" * 65 + "\n")
+
+
+def cmd_reboot_schedule(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_reboot_schedule"):
+            print("Reboot schedule is only supported on MR cellular models.")
+            return
+
+        toggle = getattr(args, "toggle", None)
+        r_time = getattr(args, "time", None)
+        mode = getattr(args, "mode", "daily")
+        day = getattr(args, "day", 1)
+
+        if toggle or r_time:
+            is_en = toggle in ("on", "enable") if toggle else True
+            hours, minutes = 3, 0
+            if r_time:
+                try:
+                    parts = r_time.split(":")
+                    hours = int(parts[0])
+                    minutes = int(parts[1]) if len(parts) > 1 else 0
+                except ValueError:
+                    pass
+            client.set_reboot_schedule(enabled=is_en, hours=hours, minutes=minutes, mode=mode, day_of_week=day)
+            print(f"\033[92m✓ Automated reboot schedule {'enabled for ' + f'{hours:02d}:{minutes:02d} ({mode})' if is_en else 'disabled'}.\033[0m")
+            return
+
+        rs = client.get_reboot_schedule()
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "enabled": rs.enabled,
+                "mode": rs.mode,
+                "time": f"{rs.hours:02d}:{rs.minutes:02d}",
+                "day_name": rs.day_name
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 55)
+        print("  \033[1mAUTOMATED REBOOT SCHEDULE\033[0m")
+        print("=" * 55)
+        st = "\033[92mENABLED\033[0m" if rs.enabled else "\033[90mDISABLED\033[0m"
+        print(f"Status         : {st}")
+        print(f"Scheduled Time : \033[1m{rs.hours:02d}:{rs.minutes:02d}\033[0m")
+        print(f"Frequency      : Every {rs.mode.capitalize()}" + (f" ({rs.day_name})" if rs.mode == "weekly" else ""))
+        print("-" * 55)
+        print("To configure auto-reboot:")
+        print("  tplink-cli reboot-schedule on --time 03:30 --mode daily")
+        print("  tplink-cli reboot-schedule off")
+        print("=" * 55 + "\n")
+
+
+def cmd_time(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_time_config"):
+            print("System time is only supported on MR cellular models.")
+            return
+
+        if getattr(args, "sync", False):
+            client.sync_time()
+            print("\033[92m✓ Router NTP synchronization requested.\033[0m")
+            return
+
+        tc = client.get_time_config()
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "current_time": tc.current_time,
+                "timezone": tc.timezone,
+                "daylight_savings": tc.daylight_savings,
+                "ntp_server1": tc.ntp_server1,
+                "ntp_server2": tc.ntp_server2
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 50)
+        print("  \033[1mROUTER SYSTEM TIME & NTP\033[0m")
+        print("=" * 50)
+        print(f"Current Local Time : \033[1m{tc.current_time}\033[0m")
+        print(f"Time Zone          : {tc.timezone}")
+        print(f"Daylight Savings   : {'Active' if tc.daylight_savings else 'Standard'}")
+        if tc.ntp_server1:
+            print(f"NTP Server 1       : {tc.ntp_server1}")
+        if tc.ntp_server2:
+            print(f"NTP Server 2       : {tc.ntp_server2}")
+        print("-" * 50)
+        print("To synchronize time via NTP: tplink-cli time --sync")
+        print("=" * 50 + "\n")
+
+
+def cmd_op_mode(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_operation_mode"):
+            print("Operation mode is only supported on MR cellular models.")
+            return
+
+        om = client.get_operation_mode()
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "mode": om.mode,
+                "raw_mode": om.raw_mode,
+                "lte_backup": om.lte_backup_enabled,
+                "cellular_data_switch": om.cellular_data_switch
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 55)
+        print("  \033[1mROUTER OPERATION MODE\033[0m")
+        print("=" * 55)
+        print(f"Active Mode     : \033[1m{om.mode}\033[0m")
+        print(f"LTE Failover    : {'Enabled (4G WAN fallback active)' if om.lte_backup_enabled else 'Disabled'}")
+        print(f"Cellular Switch : {'Online / Enabled' if om.cellular_data_switch else 'Disabled'}")
+        print("=" * 55 + "\n")
+
+
+def cmd_ddns(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "get_ddns_status"):
+            print("DDNS is only supported on MR cellular models.")
+            return
+
+        providers = client.get_ddns_status()
+        if getattr(args, "json", False):
+            print(json.dumps([{
+                "provider": p.provider,
+                "enabled": p.enabled,
+                "domain": p.domain,
+                "username": p.username,
+                "status": p.status
+            } for p in providers], indent=2))
+            return
+
+        print("\n" + "=" * 60)
+        print("  \033[1mDYNAMIC DNS (DDNS) SERVICES\033[0m")
+        print("=" * 60)
+        for p in providers:
+            st = "\033[92mENABLED\033[0m" if p.enabled else "\033[90mDISABLED\033[0m"
+            print(f"\033[1m{p.provider:<20}\033[0m : {st}")
+            if p.domain:
+                print(f"  Domain : \033[1m{p.domain}\033[0m (State: {p.status})")
+            else:
+                print(f"  Status : {p.status}")
+            print("-" * 60)
+        print("=" * 60 + "\n")
+
+
+def cmd_fw_check(args: argparse.Namespace):
+    client = get_client(args)
+    with SafeSession(client):
+        if not hasattr(client, "check_firmware_update"):
+            print("Firmware check is only supported on MR cellular models.")
+            return
+
+        fw = client.check_firmware_update()
+        if getattr(args, "json", False):
+            print(json.dumps({
+                "current_version": fw.current_version,
+                "latest_version": fw.latest_version,
+                "has_update": fw.has_update,
+                "release_date": fw.release_date,
+                "release_log": fw.release_log
+            }, indent=2))
+            return
+
+        print("\n" + "=" * 60)
+        print("  \033[1mTP-LINK OFFICIAL FIRMWARE UPDATE STATUS\033[0m")
+        print("=" * 60)
+        print(f"Installed Version : \033[1m{fw.current_version}\033[0m")
+        if fw.has_update:
+            print(f"Available Update  : \033[92m\033[1m{fw.latest_version}\033[0m (Released: {fw.release_date})")
+            if fw.release_log:
+                print(f"Changelog         :\n{fw.release_log}")
+        else:
+            print("Update Status     : \033[92m✓ Router is running the latest firmware release.\033[0m")
+        print("=" * 60 + "\n")
+
+
 def cmd_calibrate(args: argparse.Namespace):
     from tplink_router.calibration.engine import RouterCalibrator
     from tplink_router.calibration.dashboard import start_dashboard_server
@@ -772,7 +1188,7 @@ def cmd_calibrate(args: argparse.Namespace):
         calibrator.run_sweep()
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Output machine-readable JSON")
     common_parser.add_argument("--host", default=argparse.SUPPRESS, help="Router IP/Host (default: http://192.168.1.1)")
@@ -927,11 +1343,87 @@ def main():
     p_cal.add_argument("--dry-run", action="store_true", help="Simulate without radio detachment")
     p_cal.set_defaults(func=cmd_calibrate)
 
+    # logs
+    p_logs = subparsers.add_parser("logs", parents=[common_parser], help="Read or clear system & cellular event logs")
+    p_logs.add_argument("--lines", "-n", type=int, default=30, help="Number of log entries to display (default: 30)")
+    p_logs.add_argument("--module", "-m", help="Filter logs by module (e.g. 4G, DHCP, System)")
+    p_logs.add_argument("--level", "-l", help="Minimum log severity (EMERG, ALERT, CRIT, ERROR, WARN, NOTICE, INFO, DEBUG)")
+    p_logs.add_argument("--clear", action="store_true", help="Clear all stored event logs")
+    p_logs.set_defaults(func=cmd_logs)
+
+    # guest-wifi
+    p_gw = subparsers.add_parser("guest-wifi", parents=[common_parser], help="View or configure dual-band Guest Wi-Fi")
+    p_gw.add_argument("--toggle", choices=["on", "off", "enable", "disable"], help="Turn Guest Wi-Fi on/off")
+    p_gw.add_argument("--band", choices=["2.4GHz", "5GHz", "both", "2.4", "5"], default="both", help="Target band (default: both)")
+    p_gw.add_argument("--ssid", help="Set Guest Wi-Fi network name (SSID)")
+    p_gw.add_argument("--key", "--guest-password", dest="guest_password", help="Set Guest Wi-Fi WPA2 password (min 8 chars, or '' for Open)")
+    p_gw.add_argument("--allow-lan", action="store_true", default=None, help="Allow guests to access local LAN devices")
+    p_gw.add_argument("--isolate-lan", dest="allow_lan", action="store_false", help="Block guests from accessing local LAN devices")
+    p_gw.set_defaults(func=cmd_guest_wifi)
+
+    # port-forward
+    p_pf = subparsers.add_parser("port-forward", parents=[common_parser], help="Manage NAT virtual server port forwarding rules")
+    pf_sub = p_pf.add_subparsers(dest="subcommand")
+    pf_list = pf_sub.add_parser("list", parents=[common_parser], help="List all port forwarding rules")
+    pf_list.set_defaults(func=cmd_port_forward)
+    pf_add = pf_sub.add_parser("add", parents=[common_parser], help="Add a new port forwarding rule")
+    pf_add.add_argument("name", help="Service or application name (e.g. web, ssh)")
+    pf_add.add_argument("ext_port", help="External incoming WAN port (e.g. 8080)")
+    pf_add.add_argument("int_ip", help="Internal target device IP (e.g. 192.168.1.150)")
+    pf_add.add_argument("int_port", nargs="?", help="Internal destination port (defaults to ext_port)")
+    pf_add.add_argument("--proto", choices=["TCP", "UDP", "ALL"], default="ALL", help="Transport protocol (default: ALL)")
+    pf_add.set_defaults(func=cmd_port_forward)
+    pf_del = pf_sub.add_parser("del", parents=[common_parser], help="Delete port forwarding rule")
+    pf_del.add_argument("stack", help="Rule stack ID to remove (e.g. 2,1,1,1,0,0)")
+    pf_del.set_defaults(func=cmd_port_forward)
+    p_pf.set_defaults(func=cmd_port_forward)
+
+    # dmz
+    p_dmz = subparsers.add_parser("dmz", parents=[common_parser], help="View or configure DMZ host forwarding")
+    p_dmz.add_argument("state", nargs="?", choices=["on", "off", "enable", "disable"], help="Turn DMZ on/off")
+    p_dmz.add_argument("ip", nargs="?", help="Internal DMZ host IP address (e.g. 192.168.1.100)")
+    p_dmz.set_defaults(func=cmd_dmz)
+
+    # upnp
+    p_upnp = subparsers.add_parser("upnp", parents=[common_parser], help="Manage Universal Plug and Play (UPnP)")
+    p_upnp.add_argument("toggle", nargs="?", choices=["on", "off", "enable", "disable"], help="Turn UPnP on/off")
+    p_upnp.set_defaults(func=cmd_upnp)
+
+    # reboot-schedule
+    p_rs = subparsers.add_parser("reboot-schedule", parents=[common_parser], help="Manage automated periodic reboot schedule")
+    p_rs.add_argument("toggle", nargs="?", choices=["on", "off", "enable", "disable"], help="Turn auto-reboot on/off")
+    p_rs.add_argument("--time", help="Reboot time in 24h format (e.g. 03:00)")
+    p_rs.add_argument("--mode", choices=["daily", "weekly"], default="daily", help="Repeat interval")
+    p_rs.add_argument("--day", type=int, default=1, help="Day of week (1=Mon, 7=Sun) for weekly mode")
+    p_rs.set_defaults(func=cmd_reboot_schedule)
+
+    # time
+    p_time = subparsers.add_parser("time", parents=[common_parser], help="View router system clock or trigger NTP sync")
+    p_time.add_argument("--sync", action="store_true", help="Trigger NTP network time synchronization")
+    p_time.set_defaults(func=cmd_time)
+
+    # op-mode
+    p_om = subparsers.add_parser("op-mode", parents=[common_parser], help="View router operation mode (3G/4G vs Wireless)")
+    p_om.set_defaults(func=cmd_op_mode)
+
+    # ddns
+    p_ddns = subparsers.add_parser("ddns", parents=[common_parser], help="View Dynamic DNS (DDNS) providers and status")
+    p_ddns.set_defaults(func=cmd_ddns)
+
+    # fw-check
+    p_fw = subparsers.add_parser("fw-check", parents=[common_parser], help="Check for official TP-Link online firmware updates")
+    p_fw.set_defaults(func=cmd_fw_check)
+
     # repl
     p_repl = subparsers.add_parser("repl", parents=[common_parser], help="Launch interactive REPL console")
     p_repl.set_defaults(func=cmd_repl)
 
-    parsed_args = parser.parse_args()
+    return parser
+
+
+def main(args=None):
+    parser = build_parser()
+    parsed_args = parser.parse_args(args)
     for _k, _v in [("json", False), ("host", None), ("username", None), ("password", None), ("cookie", None), ("force", False)]:
         if not hasattr(parsed_args, _k):
             setattr(parsed_args, _k, _v)

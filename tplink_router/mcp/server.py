@@ -5,6 +5,7 @@ with built-in disconnection safeguards, atomic single-admin session leasing,
 and multi-environment network safety verification.
 """
 
+import dataclasses
 from typing import Optional, Dict, Any, List
 from mcp.server.mcpserver import MCPServer
 
@@ -470,6 +471,350 @@ def router_reboot(confirm: bool = False, force: bool = False) -> str:
     with SafeSession(client):
         client.reboot()
     return "Reboot command sent to router. The router is restarting."
+
+
+@server.tool()
+def router_get_system_logs(lines: int = 50, module: Optional[str] = None, min_level: Optional[str] = None, force: bool = False) -> List[Dict[str, Any]]:
+    """Retrieves system and cellular event logs from the TP-Link router.
+
+    Args:
+        lines: Maximum number of recent log entries to return (default: 50).
+        module: Optional filter by subsystem (e.g. '4G', 'DHCP', 'System', 'DNS').
+        min_level: Optional minimum severity filter ('EMERG', 'ALERT', 'CRIT', 'ERROR', 'WARN', 'NOTICE', 'INFO', 'DEBUG').
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_system_logs"):
+            return [{"error": "System logs are only supported on MR cellular models."}]
+        logs = client.get_system_logs(limit=lines, module=module, min_level=min_level)
+    return [dataclasses.asdict(l) for l in logs]
+
+
+@server.tool()
+def router_clear_system_logs(confirm: bool = False, force: bool = False) -> str:
+    """Clears the internal system event log buffer on the router.
+
+    Args:
+        confirm: Safety confirmation. Set to True to clear logs.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return "SAFETY NOTICE: Clearing logs will permanently erase all system audit entries. Call with confirm=True to proceed."
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "clear_system_logs"):
+            return "System logs are only supported on MR cellular models."
+        client.clear_system_logs()
+    return "System event logs successfully cleared."
+
+
+@server.tool()
+def router_get_guest_wifi(force: bool = False) -> Dict[str, Any]:
+    """Retrieves current dual-band (2.4GHz / 5GHz) Guest Wi-Fi status, SSIDs, and isolation settings.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_guest_wifi"):
+            return {"error": "Guest Wi-Fi is only supported on MR cellular models."}
+        gw = client.get_guest_wifi()
+    return dataclasses.asdict(gw)
+
+
+@server.tool()
+def router_set_guest_wifi(band: str = "both", enabled: bool = True, ssid: Optional[str] = None,
+                          password: Optional[str] = None, allow_lan: Optional[bool] = None,
+                          confirm: bool = False, force: bool = False) -> str:
+    """Configures or toggles dual-band Guest Wi-Fi networks and local LAN isolation.
+
+    Args:
+        band: Target band ('2.4GHz', '5GHz', or 'both').
+        enabled: Enable (True) or disable (False) Guest Wi-Fi on selected band.
+        ssid: Custom SSID name for the guest network.
+        password: WPA2-PSK password (minimum 8 characters, or empty string '' for open network).
+        allow_lan: If True, guests can reach LAN devices; if False, guests are isolated to Internet-only.
+        confirm: Confirmation flag to apply configuration.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return (
+            f"SAFETY NOTICE: Modifying Guest Wi-Fi (band={band}, enabled={enabled}) will update router radio parameters. "
+            f"Call with confirm=True to apply."
+        )
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_guest_wifi"):
+            return "Guest Wi-Fi is only supported on MR cellular models."
+        client.set_guest_wifi(band=band, enabled=enabled, ssid=ssid, password=password, allow_lan=allow_lan)
+    return f"Guest Wi-Fi ({band}) successfully {'enabled' if enabled else 'disabled'}."
+
+
+@server.tool()
+def router_get_port_forwarding(force: bool = False) -> List[Dict[str, Any]]:
+    """Lists active NAT Virtual Server port forwarding rules on the cellular WAN interface.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_port_forwarding"):
+            return [{"error": "Port forwarding is only supported on MR cellular models."}]
+        rules = client.get_port_forwarding()
+    return [dataclasses.asdict(r) for r in rules]
+
+
+@server.tool()
+def router_add_port_forwarding(name: str, external_port: str, internal_ip: str,
+                               internal_port: Optional[str] = None, protocol: str = "ALL",
+                               confirm: bool = False, force: bool = False) -> str:
+    """Creates a new NAT virtual server port forwarding rule on the router.
+
+    Args:
+        name: Service or descriptive name (e.g. 'web', 'ssh', 'minecraft').
+        external_port: Incoming WAN port or port range (e.g. '8080' or '8000-8010').
+        internal_ip: LAN destination IP address (e.g. '192.168.1.150').
+        internal_port: LAN destination port (defaults to external_port if omitted).
+        protocol: Transport protocol ('TCP', 'UDP', or 'ALL').
+        confirm: Confirmation flag to add rule.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return (
+            f"SAFETY NOTICE: Adding port forward '{name}' ({external_port} -> {internal_ip}:{internal_port or external_port} {protocol}) "
+            f"opens an incoming WAN port. Call with confirm=True to execute."
+        )
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "add_port_forwarding"):
+            return "Port forwarding is only supported on MR cellular models."
+        client.add_port_forwarding(
+            name=name,
+            external_port=external_port,
+            internal_ip=internal_ip,
+            internal_port=internal_port,
+            protocol=protocol
+        )
+    return f"Port forward rule '{name}' ({external_port} -> {internal_ip}) successfully created."
+
+
+@server.tool()
+def router_del_port_forwarding(rule_stack: str, confirm: bool = False, force: bool = False) -> str:
+    """Deletes an existing NAT virtual server port forwarding rule by stack ID.
+
+    Args:
+        rule_stack: Stack identifier of the rule to remove (e.g. '2,1,1,1,0,0').
+        confirm: Confirmation flag to delete rule.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return f"SAFETY NOTICE: Deleting port forward rule {rule_stack}. Call with confirm=True to execute."
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "del_port_forwarding"):
+            return "Port forwarding is only supported on MR cellular models."
+        client.del_port_forwarding(rule_stack=rule_stack)
+    return f"Port forward rule {rule_stack} successfully deleted."
+
+
+@server.tool()
+def router_get_dmz(force: bool = False) -> Dict[str, Any]:
+    """Retrieves DMZ (Demilitarized Zone) host forwarding status and destination IP.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_dmz"):
+            return {"error": "DMZ is only supported on MR cellular models."}
+        dmz = client.get_dmz()
+    return dataclasses.asdict(dmz)
+
+
+@server.tool()
+def router_set_dmz(enabled: bool, ip_address: str = "", confirm: bool = False, force: bool = False) -> str:
+    """Enables or disables DMZ host forwarding to an internal IP address.
+
+    Args:
+        enabled: True to enable DMZ, False to disable.
+        ip_address: Internal IP address to receive all unmapped incoming traffic.
+        confirm: Confirmation flag to modify DMZ.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return (
+            f"SAFETY WARNING: Setting DMZ to {enabled} (IP: {ip_address}) exposes all unmapped ports to that host. "
+            f"Call with confirm=True to execute."
+        )
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_dmz"):
+            return "DMZ is only supported on MR cellular models."
+        client.set_dmz(enabled=enabled, ip_address=ip_address)
+    return f"DMZ successfully {'enabled for ' + ip_address if enabled else 'disabled'}."
+
+
+@server.tool()
+def router_get_upnp(force: bool = False) -> Dict[str, Any]:
+    """Retrieves Universal Plug and Play (UPnP) status and active dynamic port mappings.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_upnp"):
+            return {"error": "UPnP is only supported on MR cellular models."}
+        upnp = client.get_upnp()
+    return dataclasses.asdict(upnp)
+
+
+@server.tool()
+def router_set_upnp(enabled: bool, confirm: bool = False, force: bool = False) -> str:
+    """Enables or disables UPnP dynamic port forwarding on the router.
+
+    Args:
+        enabled: True to enable UPnP, False to disable.
+        confirm: Confirmation flag to modify UPnP.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return f"SAFETY NOTICE: Toggling UPnP to {'enabled' if enabled else 'disabled'}. Call with confirm=True to apply."
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_upnp"):
+            return "UPnP is only supported on MR cellular models."
+        client.set_upnp(enabled=enabled)
+    return f"UPnP service successfully {'enabled' if enabled else 'disabled'}."
+
+
+@server.tool()
+def router_get_reboot_schedule(force: bool = False) -> Dict[str, Any]:
+    """Retrieves the automated periodic reboot schedule settings.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_reboot_schedule"):
+            return {"error": "Reboot schedule is only supported on MR cellular models."}
+        rs = client.get_reboot_schedule()
+    return dataclasses.asdict(rs)
+
+
+@server.tool()
+def router_set_reboot_schedule(enabled: bool, hours: int = 3, minutes: int = 0,
+                               mode: str = "daily", day_of_week: int = 1,
+                               confirm: bool = False, force: bool = False) -> str:
+    """Configures or disables automated daily or weekly periodic router reboots.
+
+    Args:
+        enabled: True to enable auto-reboot, False to disable.
+        hours: Hour of the day in 24h format (0-23, default: 3).
+        minutes: Minute of the hour (0-59, default: 0).
+        mode: Repeat frequency ('daily' or 'weekly').
+        day_of_week: Day of week for weekly mode (1=Mon, 2=Tue, ..., 7=Sun).
+        confirm: Confirmation flag to apply schedule.
+        force: Set to True to bypass Network Guard safety check.
+    """
+    if not confirm:
+        return (
+            f"SAFETY NOTICE: Configuring reboot schedule (enabled={enabled}, time={hours:02d}:{minutes:02d}, mode={mode}). "
+            f"Call with confirm=True to apply."
+        )
+
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "set_reboot_schedule"):
+            return "Reboot schedule is only supported on MR cellular models."
+        client.set_reboot_schedule(enabled=enabled, hours=hours, minutes=minutes, mode=mode, day_of_week=day_of_week)
+    return f"Reboot schedule successfully {'enabled (' + f'{hours:02d}:{minutes:02d}' + ')' if enabled else 'disabled'}."
+
+
+@server.tool()
+def router_get_time(force: bool = False) -> Dict[str, Any]:
+    """Retrieves current router system clock, time zone, daylight savings, and NTP server status.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_time_config"):
+            return {"error": "Time config is only supported on MR cellular models."}
+        tc = client.get_time_config()
+    return dataclasses.asdict(tc)
+
+
+@server.tool()
+def router_sync_time(force: bool = False) -> str:
+    """Triggers an immediate NTP network time synchronization on the router.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "sync_time"):
+            return "Time sync is only supported on MR cellular models."
+        client.sync_time()
+    return "NTP time synchronization request dispatched successfully."
+
+
+@server.tool()
+def router_get_operation_mode(force: bool = False) -> Dict[str, Any]:
+    """Retrieves the active router operation mode (3G/4G Router Mode vs Wireless Router Mode).
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_operation_mode"):
+            return {"error": "Operation mode is only supported on MR cellular models."}
+        om = client.get_operation_mode()
+    return dataclasses.asdict(om)
+
+
+@server.tool()
+def router_get_ddns(force: bool = False) -> List[Dict[str, Any]]:
+    """Retrieves Dynamic DNS (DDNS) provider configurations (TP-Link Cloud, No-IP, DynDNS).
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "get_ddns_status"):
+            return [{"error": "DDNS status is only supported on MR cellular models."}]
+        ddns_list = client.get_ddns_status()
+    return [dataclasses.asdict(d) for d in ddns_list]
+
+
+@server.tool()
+def router_check_firmware(force: bool = False) -> Dict[str, Any]:
+    """Checks for available online official TP-Link firmware updates.
+
+    Args:
+        force: Set to True to bypass Network Guard safety check.
+    """
+    client = _get_client_and_verify(force=force)
+    with SafeSession(client):
+        if not hasattr(client, "check_firmware_update"):
+            return {"error": "Firmware check is only supported on MR cellular models."}
+        fw = client.check_firmware_update()
+    return dataclasses.asdict(fw)
 
 
 def main():

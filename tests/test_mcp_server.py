@@ -32,6 +32,29 @@ from tplink_router.mcp.server import (
     router_set_lte_band,
     router_calibrate,
     router_reboot,
+    router_get_system_logs,
+    router_clear_system_logs,
+    router_get_guest_wifi,
+    router_set_guest_wifi,
+    router_get_port_forwarding,
+    router_add_port_forwarding,
+    router_del_port_forwarding,
+    router_get_dmz,
+    router_set_dmz,
+    router_get_upnp,
+    router_set_upnp,
+    router_get_reboot_schedule,
+    router_set_reboot_schedule,
+    router_get_time,
+    router_sync_time,
+    router_get_operation_mode,
+    router_get_ddns,
+    router_check_firmware,
+)
+from tplink_router.models.advanced import (
+    SystemLogEntry, GuestWiFiNetwork, GuestWiFiStatus, PortForwardRule,
+    DMZConfig, UPnPPortMapping, UPnPStatus, RebootScheduleConfig,
+    TimeConfig, OperationMode, DDNSStatus, FirmwareUpdateInfo
 )
 
 
@@ -218,6 +241,134 @@ class TestMCPServerTools(unittest.TestCase):
         ok = router_reboot(confirm=True)
         self.assertIn("Reboot command sent", ok)
         self.mock_client.reboot.assert_called_once()
+
+    def test_router_system_logs(self):
+        self.mock_client.get_system_logs.return_value = [
+            SystemLogEntry(timestamp="2026-10-29 10:00:00", level_num=6, level_name="INFO", module="4G", message="Connected")
+        ]
+        logs = router_get_system_logs(lines=10)
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["module"], "4G")
+
+        warn = router_clear_system_logs(confirm=False)
+        self.assertIn("SAFETY NOTICE", warn)
+
+        ok = router_clear_system_logs(confirm=True)
+        self.assertIn("cleared", ok)
+        self.mock_client.clear_system_logs.assert_called_once()
+
+    def test_router_guest_wifi(self):
+        self.mock_client.get_guest_wifi.return_value = GuestWiFiStatus(
+            allow_lan_access=False,
+            networks=[
+                GuestWiFiNetwork("2.4GHz", True, "GuestNet", "WPA2-PSK", True),
+                GuestWiFiNetwork("5GHz", False, "GuestNet_5G", "Open", True),
+            ]
+        )
+        gw = router_get_guest_wifi()
+        self.assertFalse(gw["allow_lan_access"])
+        self.assertEqual(len(gw["networks"]), 2)
+
+        warn = router_set_guest_wifi(band="2.4GHz", enabled=True, confirm=False)
+        self.assertIn("SAFETY NOTICE", warn)
+
+        ok = router_set_guest_wifi(band="2.4GHz", enabled=True, confirm=True)
+        self.assertIn("enabled", ok)
+        self.mock_client.set_guest_wifi.assert_called_once()
+
+    def test_router_port_forwarding(self):
+        self.mock_client.get_port_forwarding.return_value = [
+            PortForwardRule("2,1,1,1,0,0", "web", "8080", "80", "192.168.1.150", "TCP", True)
+        ]
+        pf = router_get_port_forwarding()
+        self.assertEqual(len(pf), 1)
+        self.assertEqual(pf[0]["name"], "web")
+
+        warn = router_add_port_forwarding("ssh", "22", "192.168.1.100", confirm=False)
+        self.assertIn("SAFETY NOTICE", warn)
+
+        ok = router_add_port_forwarding("ssh", "22", "192.168.1.100", confirm=True)
+        self.assertIn("successfully created", ok)
+        self.mock_client.add_port_forwarding.assert_called_once()
+
+        del_warn = router_del_port_forwarding("2,1,1,1,0,0", confirm=False)
+        self.assertIn("SAFETY NOTICE", del_warn)
+
+        del_ok = router_del_port_forwarding("2,1,1,1,0,0", confirm=True)
+        self.assertIn("successfully deleted", del_ok)
+        self.mock_client.del_port_forwarding.assert_called_once()
+
+    def test_router_dmz(self):
+        self.mock_client.get_dmz.return_value = DMZConfig(enabled=False, ip_address="")
+        dmz = router_get_dmz()
+        self.assertFalse(dmz["enabled"])
+
+        warn = router_set_dmz(enabled=True, ip_address="192.168.1.200", confirm=False)
+        self.assertIn("SAFETY WARNING", warn)
+
+        ok = router_set_dmz(enabled=True, ip_address="192.168.1.200", confirm=True)
+        self.assertIn("enabled for 192.168.1.200", ok)
+        self.mock_client.set_dmz.assert_called_once_with(enabled=True, ip_address="192.168.1.200")
+
+    def test_router_upnp(self):
+        self.mock_client.get_upnp.return_value = UPnPStatus(enabled=True, mappings=[])
+        upnp = router_get_upnp()
+        self.assertTrue(upnp["enabled"])
+
+        warn = router_set_upnp(enabled=False, confirm=False)
+        self.assertIn("SAFETY NOTICE", warn)
+
+        ok = router_set_upnp(enabled=False, confirm=True)
+        self.assertIn("disabled", ok)
+        self.mock_client.set_upnp.assert_called_once_with(enabled=False)
+
+    def test_router_reboot_schedule(self):
+        self.mock_client.get_reboot_schedule.return_value = RebootScheduleConfig(
+            enabled=True, hours=3, minutes=0, mode="daily", day_of_week=1
+        )
+        rs = router_get_reboot_schedule()
+        self.assertTrue(rs["enabled"])
+        self.assertEqual(rs["hours"], 3)
+
+        warn = router_set_reboot_schedule(enabled=True, hours=4, minutes=0, confirm=False)
+        self.assertIn("SAFETY NOTICE", warn)
+
+        ok = router_set_reboot_schedule(enabled=True, hours=4, minutes=0, confirm=True)
+        self.assertIn("enabled", ok)
+        self.mock_client.set_reboot_schedule.assert_called_once()
+
+    def test_router_time_and_op_and_ddns_and_fw(self):
+        self.mock_client.get_time_config.return_value = TimeConfig(
+            current_time="2026-10-29 10:00:00", timezone="+05:30", daylight_savings=False,
+            ntp_server1="time.nist.gov", ntp_server2="pool.ntp.org"
+        )
+        t = router_get_time()
+        self.assertEqual(t["current_time"], "2026-10-29 10:00:00")
+
+        sync_res = router_sync_time()
+        self.assertIn("dispatched successfully", sync_res)
+        self.mock_client.sync_time.assert_called_once()
+
+        self.mock_client.get_operation_mode.return_value = OperationMode(
+            mode="3G/4G Router Mode", raw_mode="LTE", lte_backup_enabled=False, cellular_data_switch=True
+        )
+        om = router_get_operation_mode()
+        self.assertEqual(om["mode"], "3G/4G Router Mode")
+
+        self.mock_client.get_ddns_status.return_value = [
+            DDNSStatus(provider="TP-Link Cloud", enabled=True, domain="test.tplinkdns.com", username="user", status="Bound"),
+            DDNSStatus(provider="No-IP", enabled=False, domain="", username="", status="Disabled"),
+        ]
+        ddns = router_get_ddns()
+        self.assertEqual(len(ddns), 2)
+        self.assertEqual(ddns[0]["provider"], "TP-Link Cloud")
+
+        self.mock_client.check_firmware_update.return_value = FirmwareUpdateInfo(
+            current_version="1.4.0", latest_version="1.4.0", release_date="2026-10-29",
+            release_log="", has_update=False
+        )
+        fw = router_check_firmware()
+        self.assertFalse(fw["has_update"])
 
 
 if __name__ == "__main__":
