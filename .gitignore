@@ -32,3 +32,6 @@ Thumbs.db
 .wrangler/
 
 .taste-skill/
+
+# Logs
+*.log

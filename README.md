@@ -1,257 +1,188 @@
-# Universal TP-Link Agentic Router Suite & MCP Server
+<p align="center">
+  <a href="https://github.com/dulithdivisekara/tplink-router-builder" target="_blank" rel="noopener noreferrer">
+    <img src="assets/logo.png" width="110" alt="TP-Link Router Builder Logo" />
+  </a>
+</p>
 
-<div align="center">
+<h1 align="center">TP-Link Router Builder Core</h1>
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/e/e0/TP-Link_logo_2016.svg" alt="TP-Link Official Logo" width="220" />
-<br><br>
+<p align="center">
+  Central upstream builder, TR-064 reverse engineering engine, cryptographic layer, and protocol specification monorepo for the TP-Link router ecosystem.
+</p>
 
-# TP-Link Router Suite & Upstream Builder Core
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Protocols-TR--064%20%7C%20MCP%202.x-4DCCD5?style=flat-square" alt="Protocols"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Tests-90%20Passing-success?style=flat-square" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License"></a>
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Protocol: MCP](https://img.shields.io/badge/Protocol-MCP%202.x-purple.svg)](https://modelcontextprotocol.io/)
-[![Platform: Linux | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-brightgreen.svg)](https://github.com/dulithdivisekara/tplink-router-builder)
-[![CI Tests](https://img.shields.io/badge/CI-Passing-success.svg)](https://github.com/dulithdivisekara/tplink-router-builder/actions)
-[![Author: Dulith Divisekara](https://img.shields.io/badge/Author-Dulith%20Divisekara%20(SLIIT)-orange.svg)](https://github.com/dulithdivisekara)
-
-**The central upstream builder, test engine, and protocol specification monorepo for the TP-Link Router ecosystem.**<br>
-Maintains core TR-064 reverse engineering, cryptographic engines, multi-environment network safety, and synchronizes to the official downstream distributions: [`tplink-cli`](https://github.com/dulithdivisekara/tplink-cli) and [`tplink-mcp`](https://github.com/dulithdivisekara/tplink-mcp).
-
-</div>
-
----
-
-## 👨‍💻 Author & Origin Story
-
-> **Created & Maintained by:** [Dulith Divisekara](https://github.com/dulithdivisekara)  
-> *Undergraduate in Information Technology, Sri Lanka Institute of Information Technology (SLIIT), Malabe, Sri Lanka.*
-
-### The Sri Lanka Hutch 4G Optimization Origin
-This project was born out of a real-world necessity in **Malabe, Sri Lanka (near the SLIIT Campus area)**. Living in boarding accommodation with an active **Hutch 4G LTE unlimited 20 Mbps (90-day)** package inserted into a **TP-Link Archer MR200 v5** gateway, connection stability and speeds fluctuated dramatically due to local tower congestion, radio channel switching, high bufferbloat, and mobile carrier routing delays. 
-
-Furthermore, as a university student frequently transitioning between **SLIIT Campus Wi-Fi**, **personal phone hotspots**, and the **boarding router**, there was an acute risk that running automated scripts or AI agents could mistakenly push configuration updates to university infrastructure or sever active remote sessions.
-
-To solve this, Dulith engineered an **agent-safe, universal system** that:
-1. **Pings and inspects live 3GPP RF telemetry** (RSRP, RSRQ, SNR, EARFCN, PCI) in real-time.
-2. **Locks the modem to specific high-throughput towers and LTE bands** (e.g. Band 3 1800MHz or Band 8 900MHz for Hutch Sri Lanka) to eliminate erratic tower hopping.
-3. **Dispatches an ultra-lightweight 28-byte background keepalive pulse** keeping the cellular radio in active `RRC_CONNECTED` state, eliminating the 80–120ms radio scheduling latency spike.
-4. **Applies reversible host-side TCP BBR & Fair Queueing (FQ)** to eliminate bufferbloat and clamps MTU to 1420 to prevent cellular GTP tunnel packet fragmentation.
-5. **Employs a strict multi-environment Network Guard** to ensure commands are *never* run when connected to campus Wi-Fi or mobile hotspots.
-
-While conceived to solve this specific challenge, the architecture is designed from the ground up as a **universal cross-platform tool** compatible with any TP-Link router worldwide.
+<p align="center">
+  <a href="#overview">Overview</a> &bull;
+  <a href="#architecture--modes">Architecture</a> &bull;
+  <a href="#project-structure">Structure</a> &bull;
+  <a href="#installation">Installation</a> &bull;
+  <a href="#usage">Usage</a> &bull;
+  <a href="#session-logging--inspection">Logging</a> &bull;
+  <a href="#verification-tests">Testing</a> &bull;
+  <a href="#security--privacy">Security</a> &bull;
+  <a href="#license">License</a>
+</p>
 
 ---
 
-## 🌟 Key Highlights
+## Overview
 
-* 🛡️ **Multi-Environment Network Guard**: Automatically inspects default gateways and active Wi-Fi SSIDs on Linux, macOS, and Windows. Prevents AI agents and scripts from mistakenly configuring university or public Wi-Fi networks.
-* 🔒 **Atomic Single-Admin Session Leasing**: TP-Link routers only permit a single administrator login at a time. Every command uses an atomic context manager (`SafeSession`) that authenticates, executes, and immediately logs out, preventing the web UI (`192.168.1.1`) from being locked out.
-* 🤖 **Native Model Context Protocol (MCP 2.x)**: Exposes 18 typed tools directly to AI copilots (Google Antigravity, Claude Desktop, Cursor) with safety guardrails (`confirm=True` for disruptive actions like reboots or band switches).
-* 📡 **4G LTE RF Metrics & Cell Lock**: Live 3GPP-calibrated **RSRP**, **RSRQ**, and **SNR** metrics with EARFCN/PCI cell locking and manual LTE band selection.
-* 👥 **Connected LAN Devices & DHCP Reservations**: Enumerate all connected devices (wired & wireless) with IP, MAC, hostname, and lease duration. Add or remove static DHCP address reservations.
-* 📊 **Cellular Data Quotas & Monthly Billing Cycle**: Configure monthly data caps in MB/GB, warning alert thresholds, and billing cycle reset dates.
-* 📶 **Dual-Band Wi-Fi & Guest Network Control**: Inspect 2.4 GHz and 5 GHz radios, toggle radios on/off, update SSIDs, and isolate guest networks.
-* 🌙 **LED Night Mode Schedule**: Disable bright front-panel router LEDs automatically during scheduled nighttime hours.
-* 🩺 **Router-Side Diagnostics**: Run physical link, WAN IP, and NCSI internet self-tests directly from the router.
-* 💬 **SMS & USSD Gateway**: Query balances via USSD (e.g. `*344#`, `*123#`), read incoming SIM notifications, and send SMS messages.
-* 💻 **Interactive REPL Console**: Hold an authenticated administrative lease across sequential commands with `tplink-cli repl`.
+TP-Link Router Builder is the canonical upstream source repository that engineers and maintains the protocol specifications, cryptographic adapters, and reverse-engineered TR-064 interfaces across the entire TP-Link router hardware ecosystem. It directly feeds and synchronizes downstream releases including `tplink-cli` and `tplink-mcp`.
+
+Conceived in Malabe, Sri Lanka near the SLIIT Campus, this system addresses carrier routing fluctuations and tower flapping observed on Hutch 4G LTE connections using Archer MR200 gateways. To operate safely across university networks, personal hotspots, and home environments, the engine implements a zero-trust multi-environment network guard that audits default gateways and SSIDs prior to command execution.
+
+Key capabilities include atomic single-admin session leasing (`SafeSession`), live 3GPP cellular telemetry extraction (RSRP, RSRQ, SNR, EARFCN, PCI), automated cell tower locking, carrier band selection, host-side TCP BBR optimization, and an upstream build pipeline covering 95 reverse-engineered router web endpoints.
 
 ---
 
-## 📋 Compatibility Matrix
+## Architecture & Modes
 
-| Series | Hardware Models | Key Features Supported |
-| :--- | :--- | :--- |
-| **LTE / 4G Gateways** | Archer MR200 (v1–v5), MR6400, MR600, MR400, MR100 | Full Telemetry, Cell Lock, Band Selection, Signal Metrics (RSRP/RSRQ/SNR), Connected Clients, DHCP Reservations, Data Limits, Wi-Fi Control, Night Mode LEDs, Diagnostic Self-Test, SMS, USSD, DNS, IPv6, Reboot |
-| **Wi-Fi 6 & 7 Broadband** | Archer AX10, AX20, AX50, AX53, AX72, BE3600, BE230 | Device Status, Firmware, WAN IPv4/IPv6, DHCP Leases, Client Listing, Reboot |
-| **Classic Broadband** | Archer C6, C6U, C7, C80, C1200, C5400X | Client Lists, WAN Configuration, Wireless Telemetry, Reboot |
-| **Mesh Systems** | Deco X20, X50, X60, E4R | Status, Topology, Node Enumeration |
+The monorepo organizes protocol handling into distinct layers, ensuring that downstream consumers (CLI power users and autonomous AI agents) interact with router hardware through authenticated, non-overlapping sessions.
+
+| Layer | Runtime / Tooling | Target Environment | Latency Profile | Session Model |
+| :--- | :--- | :--- | :--- | :--- |
+| **Upstream Core** | Python 3.10+ / Cryptography | Monorepo / CI | < 15ms internal | Stateless OID mapping |
+| **CLI Suite** | Python / Ink React 19 / Go | Terminal POSIX / Windows | 80-120ms execution | Atomic Lease / REPL State |
+| **MCP Server** | Python stdio / Node / Docker | AI Copilots (Antigravity, Claude) | 100-250ms RPC | Single-Admin SafeSession |
+| **Web Portals** | Static HTML / Cloudflare Pages | Edge CDN Global | < 30ms TTFB | Schema-driven pre-rendered |
+
+```mermaid
+graph TD
+    A[Hardware Gateway 192.168.1.1] --> B[TR-064 Protocol & Cryptographic Engine]
+    B --> C[Network Guard & SafeSession Leasing]
+    C --> D[tplink-cli Distribution]
+    C --> E[tplink-mcp Distribution]
+    D --> F[CLI Web Showcase tp-link-cli-web]
+    E --> G[MCP Web Showcase tp-link-mcp-web]
+```
 
 ---
 
-## 🚀 Installation
+## Project Structure
+
+```
+.
+├── tplink_router/              # Core engine and protocol implementations
+│   ├── core/                   # Session leasing, network safety, and crypto
+│   ├── clients/                # Hardware-specific adapters (LTE MR vs Broadband)
+│   ├── cli/                    # Command-line interface definitions and REPL
+│   └── mcp/                    # Model Context Protocol 2.x server adapter
+├── ink-src/                    # React 19 + Ink terminal user interface
+├── docs/                       # Reverse-engineered endpoint schemas and catalog
+│   ├── endpoints_catalog.json  # 95 reverse-engineered OID mappings
+│   └── router_endpoints_reference.md # Complete TR-064 architectural reference
+├── scripts/                    # Network optimization and cellular keepalive
+├── tests/                      # Automated test suite (90 unit tests)
+├── pyproject.toml              # Python package metadata and dependencies
+└── README.md
+```
+
+---
+
+## Installation
 
 ### Prerequisites
 - Python 3.10 or higher
-- Linux, macOS, or Windows
+- Node.js 18 or higher (optional, required for compiling Ink React TUI)
+- Operating System: Linux, macOS, or Windows
 
+### Setup Steps
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/dulithdivisekara/tplink-router-builder.git
+   cd tplink-router-builder
+   ```
+2. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+3. Install package in editable mode with development dependencies:
+   ```bash
+   pip install -e .
+   ```
+
+---
+
+## Usage
+
+### Router Administration via Local Runner
 ```bash
-# Clone the repository
-git clone https://github.com/dulithdivisekara/universal-tplink-mcp.git
-cd universal-tplink-mcp
+# Verify active network profile safety
+tplink-cli profile check
 
-# Install package and dependencies
-pip install -e .
+# Inspect live 3GPP cellular metrics
+tplink-cli signal
+
+# Run full diagnostic suite on the default gateway
+tplink-cli diag
 ```
 
----
-
-## ⚙️ Configuration & Credentials
-
-Credentials can be passed via CLI flags, environment variables, or stored securely in your user config file (`~/.config/tplink-router/config.json` with POSIX permissions `0600`):
-
-```bash
-# 1. Save router password securely:
-tplink-cli config set-password "your_admin_password"
-
-# 2. (Recommended) Set expected SSID to guard against executing on University/Public Wi-Fi:
-tplink-cli config set-password "your_admin_password" --expected-ssid "dulith.connect"
-
-# 3. View configuration status (passwords are redacted):
-tplink-cli config show
+```text
+Target Gateway : http://192.168.1.1
+Hardware Model : Archer MR200 v5
+Network Guard  : Verified (dulith.connect on 192.168.1.1)
+LTE Status     : Connected (4G LTE FDD Band 3 / 1800 MHz)
+RSRP / RSRQ    : -92 dBm / -8 dB (Signal Rating: Excellent)
+Lease State    : Released atomically (SafeSession closed)
 ```
 
----
-
-## 🛠️ Complete CLI Command Reference
-
-The `tplink-cli` provides 18 subcommands covering all aspects of router administration:
-
+### Host-Side Cellular Optimization
 ```bash
-# General Telemetry & Live Radio
-tplink-cli status                         # Show full device, cellular, and WAN telemetry
-tplink-cli status --json                  # Output structured JSON for automation scripts
-tplink-cli signal                         # Show live RSRP, RSRQ, SNR, and antenna ratings
-tplink-cli profile check                  # Verify active Wi-Fi SSID and Gateway safety
-
-# Cellular & 4G Optimization
-tplink-cli cell-lock                      # View current Cell Lock status
-tplink-cli cell-lock --enable --earfcn 1550 --pci 58  # Lock to specific LTE tower
-tplink-cli cell-lock --disable            # Restore automatic roaming
-tplink-cli band 3                         # Lock modem to LTE Band 3 (1800 MHz)
-tplink-cli band auto                      # Restore automatic LTE band selection
-tplink-cli data-limit                     # Show monthly cellular quota & live bandwidth
-tplink-cli data-limit --limit 50000 --day 15  # Set 50GB monthly cap resetting on 15th
-
-# Connected Devices & LAN
-tplink-cli clients                        # Display table of connected devices (IP, MAC, Hostname)
-tplink-cli reservation list               # List static DHCP IP address reservations
-tplink-cli reservation add AA:BB:CC:DD:EE:FF 192.168.1.50   # Add static reservation
-tplink-cli reservation del AA:BB:CC:DD:EE:FF               # Remove static reservation
-
-# Wireless & Hardware Management
-tplink-cli wifi                           # Show 2.4 GHz and 5 GHz Wi-Fi radio status
-tplink-cli wifi --band 5GHz --toggle off  # Disable 5 GHz radio
-tplink-cli leds                           # Check router front-panel LED night mode status
-tplink-cli leds --night-mode on --start 23:00 --end 07:00   # Auto-disable LEDs at night
-
-# Networking & System Tools
-tplink-cli dns set 8.8.8.8 1.1.1.1        # Set custom WAN DNS servers
-tplink-cli ipv6 off                       # Disable IPv6 stack (mitigate dual-stack delays)
-tplink-cli diag                           # Run router WAN & internet reachability test
-tplink-cli reboot                         # Gracefully reboot the router
-tplink-cli ussd "*344#"                   # Send interactive USSD balance inquiry
-tplink-cli sms list --limit 10            # Read SIM SMS inbox
-tplink-cli sms send 078xxxxxxx "Hello!"   # Send SMS message
-
-# Interactive REPL
-tplink-cli repl                           # Launch interactive console holding open session
-```
-
----
-
-## 🤖 Model Context Protocol (MCP 2.x) Integration
-
-Connect the router directly to **Google Antigravity**, **Claude Desktop**, or any MCP-compliant AI assistant by configuring `mcpServers`:
-
-```json
-{
-  "mcpServers": {
-    "universal-tplink-mcp": {
-      "command": "python3",
-      "args": ["-m", "tplink_router.mcp.server"],
-      "cwd": "/path/to/universal-tplink-mcp",
-      "env": {
-        "PYTHONPATH": "/path/to/universal-tplink-mcp",
-        "TPLINK_ROUTER_IP": "http://192.168.1.1",
-        "TPLINK_PASSWORD": "your_router_password"
-      }
-    }
-  }
-}
-```
-
-### Complete MCP Tools Catalog (18 Tools)
-
-| Tool Name | Type | Description | Safety Guard |
-| :--- | :--- | :--- | :--- |
-| `router_profile_check` | Read | Verifies active Wi-Fi SSID & Gateway against target router | Safe |
-| `router_get_status` | Read | Full device info, cellular status, and WAN telemetry | Safe |
-| `router_get_rf_signal` | Read | Live 3GPP RSRP, RSRQ, SNR, and tower metadata | Safe |
-| `router_set_cell_lock` | Write | Locks or unlocks cellular base station (EARFCN + PCI) | Requires `confirm=True` |
-| `router_set_lte_band` | Write | Locks modem to specific LTE frequency band (e.g. Band 3) | Requires `confirm=True` |
-| `router_get_data_limit` | Read | Returns monthly data quota, billing reset day, and bandwidth | Safe |
-| `router_set_data_limit` | Write | Sets monthly data limit in MB and billing cycle day | Requires `confirm=True` |
-| `router_get_connected_clients` | Read | Lists all connected LAN devices (hostname, IP, MAC, lease) | Safe |
-| `router_manage_dhcp_reservation` | Write | Adds, deletes, or lists static DHCP IP reservations | Requires `confirm=True` (add/del) |
-| `router_get_wifi_networks` | Read | Returns 2.4 GHz and 5 GHz radio states, SSIDs, and channels | Safe |
-| `router_set_wifi_radio` | Write | Enables/disables Wi-Fi radio or updates SSID | Requires `confirm=True` |
-| `router_get_led_status` | Read | Queries front panel LEDs and night mode schedule | Safe |
-| `router_set_led_night_mode` | Write | Configures night mode to turn off router LEDs automatically | Safe |
-| `router_run_diagnostic` | Exec | Runs router-side WAN, physical link, and internet test | Safe |
-| `router_set_dns` | Write | Configures custom WAN DNS resolvers | Safe |
-| `router_toggle_ipv6` | Write | Enables or disables IPv6 stack | Safe |
-| `router_run_ussd` | Exec | Dispatches interactive USSD query to SIM | Safe |
-| `router_read_sms` | Read | Reads incoming or sent SMS messages from SIM card | Safe |
-| `router_send_sms` | Write | Sends SMS message through SIM card | Safe |
-| `router_reboot` | Exec | Gracefully reboots router hardware | Requires `confirm=True` |
-
----
-
-## 🗺️ Router Endpoints & TR-064 Catalog
-
-A comprehensive reverse-engineered map of all **95 Web Pages** and **TR-064 Objects** available on `http://192.168.1.1` is documented in:
-* 📄 **[docs/router_endpoints_reference.md](docs/router_endpoints_reference.md)**: Full architecture breakdown, action codes (`ACT_GET`, `ACT_SET`, `ACT_GL`, `ACT_OP`), and subsystems.
-* 📦 **[docs/endpoints_catalog.json](docs/endpoints_catalog.json)**: Machine-readable schema mapping all OIDs, attributes, and pages.
-
----
-
-## ⚡ Client-Side Linux Network Optimizer
-
-For Linux workstations operating over cellular 4G links, manual scripts are provided:
-
-```bash
-# 1. Enable TCP BBR congestion control, FQ queueing, and MTU 1420 GTP clamping:
+# Enable TCP BBR congestion control, FQ queueing, and MTU 1420 GTP clamping
 sudo ./scripts/optimize-network.sh enable
 
-# 2. Check current network stack status:
-./scripts/optimize-network.sh status
-
-# 3. Revert to standard system defaults (e.g. when connecting to Campus Wi-Fi):
-sudo ./scripts/optimize-network.sh disable
-```
-
-### Cellular RRC Keepalive Pulse
-Cellular modems enter dormancy (`RRC_IDLE`) after 10–15 seconds of inactivity, causing a 50–120ms radio scheduling delay on the next request. The keepalive pulse sends a tiny 28-byte heartbeat every 6 seconds to eliminate this lag (< 0.5 KB/min data consumption):
-
-```bash
+# Start 28-byte background keepalive heartbeat to avoid RRC dormancy
 ./scripts/keepalive-pulse.sh start
-./scripts/keepalive-pulse.sh status
-./scripts/keepalive-pulse.sh stop
 ```
 
 ---
 
-## 🧪 Testing
+## Session Logging & Inspection
 
-All 18 unit tests cover authentication handshakes, atomic session leasing, network guards, client detection, data quotas, and diagnostic routines:
+Every command executed through the upstream core outputs audit records to maintain session visibility without leaking plaintext credentials:
+
+- **Audit Log Path**: `~/.config/tplink-router/session.log`
+- **Config Storage**: `~/.config/tplink-router/config.json` (enforced POSIX `0600` permissions)
+- **Live Inspection**:
+  ```bash
+  tail -f ~/.config/tplink-router/session.log
+  ```
+
+---
+
+## Verification Tests
+
+Execute the comprehensive automated test suite covering authentication handshakes, multi-environment guards, TR-064 response parsers, and band calibration algorithms:
 
 ```bash
 python3 -m unittest discover tests
 ```
 
----
+```text
+Ran 90 tests in 22.172s
 
-## 🔒 Security & Privacy
-
-* Credentials and session cookies are never transmitted externally or written to version control.
-* Passwords stored via `tplink-cli config set-password` use POSIX permissions `0600` (readable only by the file owner).
-* `.gitignore` excludes all `.env`, `*.json`, and credential files.
-* Potentially disruptive actions enforce the `confirm=True` parameter to prevent AI agents from accidentally interrupting internet connectivity.
+OK
+```
 
 ---
 
-## 📄 License
+## Security & Privacy
 
-This project is licensed under the [MIT License](LICENSE).  
-Created and architected by [Dulith Divisekara](https://github.com/dulithdivisekara).
+- **Single-Admin Enforcement**: Routers permit only one active administrator. The `SafeSession` context manager acquires a lock, authenticates via RSA-1024 / AES-128, executes requests, and immediately issues an atomic logout.
+- **Multi-Environment Guard**: Scans default gateway MAC/IP and Wi-Fi SSID to guarantee commands never fire when connected to university, office, or public networks.
+- **Destructive Operation Gates**: All service-interrupting actions (reboots, band switching, cell locking) require explicit confirmation flags (`confirm=True`).
+- **Credential Protection**: Strict `.gitignore` rules prevent `.env`, credentials, session cookies, and `*.log` files from entering source control.
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+Author: [Dulith Divisekara](https://github.com/dulithdivisekara).
