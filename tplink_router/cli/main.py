@@ -114,11 +114,16 @@ def cmd_status(args: argparse.Namespace):
         print("=" * 65)
         print(f"Hardware / Firmware : {dev.hardware_version} | {dev.firmware_version}")
         if lte:
+            conn_state = "\033[92mCONNECTED\033[0m" if lte.connected else "\033[91mDISCONNECTED\033[0m"
             print(f"Cellular Operator   : \033[1m{lte.isp_name}\033[0m (SIM: {lte.sim_status})")
-            print(f"Connection State    : {'\033[92mCONNECTED\033[0m' if lte.connected else '\033[91mDISCONNECTED\033[0m'}")
+            print(f"Connection State    : {conn_state}")
             print(f"LTE Band / EARFCN   : {lte.band} (EARFCN: {lte.earfcn or 'N/A'}, PCI: {lte.pci or 'N/A'})")
             lock = lte.cell_lock
-            print(f"Cell Lock Status    : {'\033[92mLOCKED to EARFCN ' + lock.earfcn + ' PCI ' + lock.pci + '\033[0m' if lock.enabled else 'Disabled (Auto roaming)'}")
+            lock_state = (
+                f"\033[92mLOCKED to EARFCN {lock.earfcn} PCI {lock.pci}\033[0m"
+                if lock.enabled else "Disabled (Auto roaming)"
+            )
+            print(f"Cell Lock Status    : {lock_state}")
             print("-" * 65)
             print("  \033[1mRADIO FREQUENCY (RF) METRICS\033[0m")
             print(f"Signal Strength     : {lte.rf.signal_bars} / 4 bars")
@@ -133,7 +138,8 @@ def cmd_status(args: argparse.Namespace):
         print("  \033[1mWAN NETWORK CONFIGURATION\033[0m")
         print(f"WAN IPv4 Address    : {v4.ip or 'N/A'} (Gateway: {v4.gateway or 'N/A'})")
         print(f"Active DNS Servers  : {', '.join(v4.dns) if v4.dns else 'Default ISP'}")
-        print(f"IPv6 Enabled        : {'\033[92mYes\033[0m (' + v6.status + ')' if v6.enabled else '\033[93mDisabled\033[0m'}")
+        ipv6_state = f"\033[92mYes\033[0m ({v6.status})" if v6.enabled else "\033[93mDisabled\033[0m"
+        print(f"IPv6 Enabled        : {ipv6_state}")
         print("=" * 65 + "\n")
         return
 
@@ -749,7 +755,8 @@ def cmd_profile_check(args: argparse.Namespace):
         print(f"Current Wi-Fi SSID : \033[1m{ssid or 'Wired / Hotspot'}\033[0m")
         print(f"Default Gateway    : \033[1m{gw or 'Unknown'}\033[0m")
         print(f"Target Router Host : {cfg['host']}")
-        print(f"Network Guard State: {'\033[92mMATCH / SAFE\033[0m' if is_safe else '\033[93mMISMATCH / PROTECTED\033[0m'}")
+        guard_state = "\033[92mMATCH / SAFE\033[0m" if is_safe else "\033[93mMISMATCH / PROTECTED\033[0m"
+        print(f"Network Guard State: {guard_state}")
         print(f"Detail             : {msg}")
         print("=" * 60 + "\n")
         return
@@ -1269,7 +1276,8 @@ def cmd_data_limit(args: argparse.Namespace):
             print("\n" + "=" * 55)
             print("  \033[1mCELLULAR DATA LIMITS & USAGE\033[0m")
             print("=" * 55)
-            print(f"Quota Enforcement   : {'\033[92mActive\033[0m' if data['limit_enabled'] else 'Disabled'}")
+            quota_state = "\033[92mActive\033[0m" if data['limit_enabled'] else "Disabled"
+            print(f"Quota Enforcement   : {quota_state}")
             print(f"Monthly Limit       : {data['limit_mb']} MB ({round(data['limit_mb'] / 1024, 2)} GB)")
             print(f"Billing Reset Day   : Day {data['billing_day']} of month")
             print(f"Warning Alert At    : {data['warning_percent']}%")
@@ -1394,8 +1402,10 @@ def cmd_leds(args: argparse.Namespace):
 
         if _is_legacy(args):
             print("\n\033[1mRouter Front Panel LED Status:\033[0m")
-            print(f"  LEDs Active        : {'\033[92mYes\033[0m' if leds['leds_on'] else '\033[93mOff\033[0m'}")
-            print(f"  Night Mode Schedule: {'\033[92mEnabled\033[0m' if leds['night_mode_enabled'] else 'Disabled'}")
+            leds_state = "\033[92mYes\033[0m" if leds['leds_on'] else "\033[93mOff\033[0m"
+            night_state = "\033[92mEnabled\033[0m" if leds['night_mode_enabled'] else "Disabled"
+            print(f"  LEDs Active        : {leds_state}")
+            print(f"  Night Mode Schedule: {night_state}")
             if leds["night_mode_enabled"]:
                 print(f"  Off Schedule Hours : {leds['night_mode_start']} -> {leds['night_mode_end']}")
             return
