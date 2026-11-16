@@ -3,7 +3,7 @@
 import logging
 import re
 import time
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Tuple, Union
 
 import requests
 from tplink_router.core.auth import MultiProtocolAuth
