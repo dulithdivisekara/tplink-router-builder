@@ -307,4 +307,3 @@ OK
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-Author: [Dulith Divisekara](https://github.com/dulithdivisekara) (SLIIT Malabe, Sri Lanka).
