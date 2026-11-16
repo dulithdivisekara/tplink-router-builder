@@ -1,0 +1,44 @@
+{
+  "name": "tplink-router-suite",
+  "version": "1.1.0",
+  "description": "Universal TP-Link Router Suite: Production CLI, React Ink TUI, and Model Context Protocol (MCP 2.x) Server",
+  "main": "bin/tplink-cli.js",
+  "bin": {
+    "tplink-cli": "bin/tplink-cli.js",
+    "tplink-mcp": "bin/tplink-mcp.js"
+  },
+  "scripts": {
+    "build:ink": "npm --prefix ink-src run build",
+    "build:web": "python3 web/scripts/build.py",
+    "test": "python3 -m unittest discover tests"
+  },
+  "keywords": [
+    "tplink",
+    "router",
+    "cli",
+    "mcp",
+    "model-context-protocol",
+    "tui",
+    "ink",
+    "react-cli",
+    "4g-lte",
+    "archer-mr200",
+    "cell-lock",
+    "bbr",
+    "claude-desktop",
+    "antigravity"
+  ],
+  "author": "Dulith Divisekara <dulithdivisekara@gmail.com> (https://github.com/dulithdivisekara)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dulithdivisekara/tplink-router-suite.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dulithdivisekara/tplink-router-suite/issues"
+  },
+  "homepage": "https://github.com/dulithdivisekara/tplink-router-suite#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,521 @@
+[
+  {
+    "name": "status",
+    "command": "tplink-cli status",
+    "category": "Diagnostics",
+    "badge_color": "blue",
+    "description": "Show full router & cellular telemetry",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "signal",
+    "command": "tplink-cli signal",
+    "category": "Cellular",
+    "badge_color": "emerald",
+    "description": "Show RF signal metrics (RSRP, RSRQ, SNR)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "cell-lock",
+    "command": "tplink-cli cell-lock",
+    "category": "Cellular",
+    "badge_color": "emerald",
+    "description": "View or configure LTE Cell Lock",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--enable",
+      "--disable",
+      "--earfcn",
+      "--pci"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "dns",
+    "command": "tplink-cli dns",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Manage router DNS settings",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<action>"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "ipv6",
+    "command": "tplink-cli ipv6",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Toggle IPv6 stack (on/off)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<state>",
+      "-i",
+      "--interactive"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "ussd",
+    "command": "tplink-cli ussd",
+    "category": "Cellular",
+    "badge_color": "emerald",
+    "description": "Execute USSD query (e.g. *344# or *123#)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<code>"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "sms",
+    "command": "tplink-cli sms",
+    "category": "SMS",
+    "badge_color": "purple",
+    "description": "Read or send SMS",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--limit",
+      "--folder"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "reboot",
+    "command": "tplink-cli reboot",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Reboot the router",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "-y",
+      "--yes"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "profile",
+    "command": "tplink-cli profile",
+    "category": "Diagnostics",
+    "badge_color": "blue",
+    "description": "Check active network profile and gateway safety",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "config",
+    "command": "tplink-cli config",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Manage stored credentials",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "cookie",
+    "command": "tplink-cli cookie",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "View or save browser session cookie",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<cookie_val>"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "wifi-guard",
+    "command": "tplink-cli wifi-guard",
+    "category": "Wi-Fi",
+    "badge_color": "amber",
+    "description": "Verify and optimize Wi-Fi link stability (no Ethernet needed)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--optimize",
+      "--fix"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "clients",
+    "command": "tplink-cli clients",
+    "category": "Diagnostics",
+    "badge_color": "blue",
+    "description": "List connected LAN devices (IP, MAC, Hostname)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "reservation",
+    "command": "tplink-cli reservation",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Manage DHCP static IP reservations",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "data-limit",
+    "command": "tplink-cli data-limit",
+    "category": "Cellular",
+    "badge_color": "emerald",
+    "description": "View or set monthly cellular data cap",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--limit",
+      "--day"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "wifi",
+    "command": "tplink-cli wifi",
+    "category": "Wi-Fi",
+    "badge_color": "amber",
+    "description": "View or configure Wi-Fi radios (2.4GHz / 5GHz)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--band",
+      "--toggle",
+      "--ssid"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "leds",
+    "command": "tplink-cli leds",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Control router LEDs and Night Mode schedule",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--night-mode",
+      "--start",
+      "--end"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "diag",
+    "command": "tplink-cli diag",
+    "category": "Diagnostics",
+    "badge_color": "blue",
+    "description": "Run router WAN and internet diagnostic test",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "band",
+    "command": "tplink-cli band",
+    "category": "Cellular",
+    "badge_color": "emerald",
+    "description": "View or lock LTE Band (e.g. 3, 8, 40, auto)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<band>",
+      "-i",
+      "--interactive"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "calibrate",
+    "command": "tplink-cli calibrate",
+    "category": "Cellular",
+    "badge_color": "emerald",
+    "description": "Autonomous RF band calibration & Live Web UI",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--web",
+      "--no-web",
+      "--port",
+      "--bands",
+      "--timeout",
+      "--dry-run",
+      "-i",
+      "--interactive"
+    ],
+    "has_demo": true
+  },
+  {
+    "name": "logs",
+    "command": "tplink-cli logs",
+    "category": "Diagnostics",
+    "badge_color": "blue",
+    "description": "Read or clear system & cellular event logs",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--lines",
+      "-n",
+      "--module",
+      "-m",
+      "--level",
+      "-l",
+      "--clear"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "guest-wifi",
+    "command": "tplink-cli guest-wifi",
+    "category": "Wi-Fi",
+    "badge_color": "amber",
+    "description": "View or configure dual-band Guest Wi-Fi",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--toggle",
+      "--band",
+      "--ssid",
+      "--key",
+      "--guest-password",
+      "--allow-lan",
+      "--isolate-lan"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "port-forward",
+    "command": "tplink-cli port-forward",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Manage NAT virtual server port forwarding rules",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "dmz",
+    "command": "tplink-cli dmz",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "View or configure DMZ host forwarding",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<state>",
+      "<ip>"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "upnp",
+    "command": "tplink-cli upnp",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Manage Universal Plug and Play (UPnP)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<toggle>"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "reboot-schedule",
+    "command": "tplink-cli reboot-schedule",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Manage automated periodic reboot schedule",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "<toggle>",
+      "--time",
+      "--mode",
+      "--day"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "time",
+    "command": "tplink-cli time",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "View router system clock or trigger NTP sync",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui",
+      "--sync"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "op-mode",
+    "command": "tplink-cli op-mode",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "View router operation mode (3G/4G vs Wireless)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "ddns",
+    "command": "tplink-cli ddns",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "View Dynamic DNS (DDNS) providers and status",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "fw-check",
+    "command": "tplink-cli fw-check",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Check for official TP-Link online firmware updates",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "repl",
+    "command": "tplink-cli repl",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Launch interactive REPL console",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "legacy",
+    "command": "tplink-cli legacy",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Display classic standard argparse help layout",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  },
+  {
+    "name": "tui",
+    "command": "tplink-cli tui",
+    "category": "System",
+    "badge_color": "indigo",
+    "description": "Launch interactive Terminal UI (vadimdemedes/ink React TUI)",
+    "flags": [
+      "--legacy",
+      "--mono",
+      "--no-anim",
+      "--python-tui"
+    ],
+    "has_demo": false
+  }
+]

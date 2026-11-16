@@ -1,0 +1,14 @@
+Origin: Dulith Divisekara
+Label: TP-Link Router CLI
+Suite: stable
+Codename: stable
+Architectures: all amd64 arm64 i386
+Components: main
+Description: Official APT repository for Universal TP-Link Router CLI
+Date: Thu, 29 Oct 2026 15:26:46 UTC
+MD5Sum:
+ fd99429a74b222ec33fae7ba8a167be2 654 main/binary-all/Packages
+ ff38b36644fa5314842d75ba52dd2280 475 main/binary-all/Packages.gz
+SHA256:
+ d3bb6d0186eace11c538b352087c3658dc55121c8daf9dd1fd1a3f5ac1df1ac7 654 main/binary-all/Packages
+ f290f00ccdff78b6f5dc5bdc9cc06ae0e09e06ddfc99257248ae2147db35a7bb 475 main/binary-all/Packages.gz

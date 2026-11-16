@@ -3,16 +3,16 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tplink-router-builder"
-version = "1.0.0"
-description = "Universal, Agent-Safe TP-Link Router Management Suite & MCP Server (Linux, macOS, Windows)"
+name = "tplink-router-suite"
+version = "1.1.0"
+description = "Universal TP-Link Router Suite: Production CLI, React Ink TUI, and Model Context Protocol (MCP 2.x) Server"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
     { name = "Dulith Divisekara", email = "dulithdivisekara@gmail.com" }
 ]
 keywords = [
-    "tplink", "mcp", "model-context-protocol", "router-automation",
+    "tplink", "cli", "mcp", "model-context-protocol", "router-automation",
     "archer-mr200", "4g-lte", "agentic-ai", "network-optimization", "hutch-sri-lanka"
 ]
 classifiers = [
@@ -40,14 +40,13 @@ dependencies = [
 
 [project.scripts]
 tplink-cli = "tplink_router.cli.main:main"
-universal-tplink-mcp = "tplink_router.mcp.server:main"
 tplink-mcp = "tplink_router.mcp.server:main"
+universal-tplink-mcp = "tplink_router.mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/dulithdivisekara/tplink-router-builder"
-Repository = "https://github.com/dulithdivisekara/tplink-router-builder.git"
-Issues = "https://github.com/dulithdivisekara/tplink-router-builder/issues"
+Homepage = "https://github.com/dulithdivisekara/tplink-router-suite"
+Repository = "https://github.com/dulithdivisekara/tplink-router-suite.git"
+Issues = "https://github.com/dulithdivisekara/tplink-router-suite/issues"
 
 [tool.setuptools.package-data]
 "*" = ["*.mjs", "*.html", "*.css", "*.js", "*.json"]
-

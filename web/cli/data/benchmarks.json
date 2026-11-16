@@ -1,0 +1,22 @@
+{
+  "throughput": {
+    "value": "19.8 Mbps",
+    "label": "Real Throughput",
+    "caption": "99% of 20Mbps theoretical cap"
+  },
+  "latency": {
+    "value": "28 ms",
+    "label": "Loaded Latency",
+    "caption": "Down from 184ms on Cubic"
+  },
+  "fragmentation": {
+    "value": "0.0%",
+    "label": "Packet Fragmentation",
+    "caption": "MSS 1380 + MTU 1420"
+  },
+  "reversibility": {
+    "value": "100%",
+    "label": "Reversible",
+    "caption": "One-click revert on non-cellular Wi-Fi"
+  }
+}

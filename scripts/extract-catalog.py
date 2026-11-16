@@ -11,8 +11,8 @@ import json
 from pathlib import Path
 
 BUILDER_DIR = Path(__file__).resolve().parent.parent
-MCP_WEB_DATA = Path("/home/dulith/Projects/tp-link-mcp-web/data")
-CLI_WEB_DATA = Path("/home/dulith/Projects/tp-link-cli-web/data")
+MCP_WEB_DATA = BUILDER_DIR / "web" / "mcp" / "data"
+CLI_WEB_DATA = BUILDER_DIR / "web" / "cli" / "data"
 SCHEMA_DIR = Path("/home/dulith/.gemini/antigravity/mcp/tplink-mcp")
 
 CATEGORY_MAP = {

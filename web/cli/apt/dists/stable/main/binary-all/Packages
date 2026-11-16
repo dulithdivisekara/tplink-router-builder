@@ -1,0 +1,16 @@
+Package: tplink-cli
+Version: 1.0.0
+Architecture: all
+Maintainer: Dulith Divisekara <dulithdivisekara@gmail.com>
+Depends: python3, python3-requests, python3-cryptography
+Filename: pool/main/t/tplink-cli/tplink-cli_1.0.0_all.deb
+Size: 66626
+MD5sum: fc465a460d3dbf45cca5f924d9e587af
+SHA1: 8f629e3f3088fc9d3f9ce51743044ec9e0797262
+SHA256: de7bc5eda94fa81b272350d0f32d4e2678da5eac6b4eae12157e2ae8dde9af9b
+Section: net
+Priority: optional
+Description: Universal TP-Link Router CLI & Network Optimization Suite
+ Production-grade command-line interface for TP-Link 4G LTE gateways
+ and broadband routers with built-in network safety guards and BBR optimization.
+

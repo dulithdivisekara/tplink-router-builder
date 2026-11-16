@@ -1,0 +1,21 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - tplinkPassword
+    properties:
+      tplinkRouterIp:
+        type: string
+        description: Router IP address or URL (default http://192.168.1.1)
+        default: "http://192.168.1.1"
+      tplinkPassword:
+        type: string
+        description: Administrator password for the TP-Link router
+      tplinkExpectedSsid:
+        type: string
+        description: Expected Wi-Fi SSID to prevent executing on university or public networks
+  commandFunction:
+    - python
+    - -m
+    - tplink_router.mcp.server

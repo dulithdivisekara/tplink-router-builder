@@ -1,0 +1,25 @@
+{
+  "name": "TP-Link Router CLI",
+  "version": "1.0.0",
+  "description": "High-performance developer CLI for TP-Link 4G/LTE/5G Archer and MiFi routers with carrier-grade RF diagnostics, BBR kernel tuning, MTU clamping, and band locking.",
+  "last_updated": "2026-10-29",
+  "author": {
+    "name": "Dulith Divisekara",
+    "affiliation": "SLIIT Malabe, Sri Lanka",
+    "context": "Born from optimizing Hutch 4G 20Mbps Unlimited cellular broadband"
+  },
+  "urls": {
+    "live": "https://tp-link-cli.dulith.me",
+    "pages_fallback": "https://tp-link-cli.pages.dev",
+    "cli_repo": "https://github.com/dulithdivisekara/tplink-cli",
+    "mcp_repo": "https://github.com/dulithdivisekara/tplink-mcp",
+    "mcp_live": "https://tp-link-mcp.dulith.me",
+    "builder_hub": "https://github.com/dulithdivisekara/tplink-router-builder",
+    "installer_sh": "https://tp-link-cli.dulith.me/install.sh",
+    "deb_package": "https://tp-link-cli.dulith.me/tplink-cli_1.0.0_all.deb"
+  },
+  "stats": {
+    "subcommands_count": 31,
+    "supported_platforms": ["Linux", "macOS", "WSL2", "Raspberry Pi", "OpenWrt"]
+  }
+}

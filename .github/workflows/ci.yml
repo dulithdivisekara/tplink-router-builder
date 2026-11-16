@@ -32,3 +32,7 @@ jobs:
     - name: Run unit tests
       run: |
         python -m unittest discover tests
+
+    - name: Validate web schemas and build portals
+      run: |
+        python web/scripts/build.py

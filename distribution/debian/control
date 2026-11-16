@@ -1,0 +1,10 @@
+Package: tplink-cli
+Version: 1.1.0
+Section: net
+Priority: optional
+Architecture: all
+Depends: python3, python3-requests, python3-cryptography
+Maintainer: Dulith Divisekara <dulithdivisekara@gmail.com>
+Description: Universal TP-Link Router Suite CLI & Network Optimization
+ Production-grade command-line interface for TP-Link 4G LTE gateways
+ and broadband routers with built-in network safety guards and BBR optimization.
