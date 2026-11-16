@@ -85,7 +85,7 @@ def build_cli():
         pre = parts[0] + start_tag + "\n"
         post = "\n        " + end_tag + parts[1].split(end_tag)[1]
         html_file.write_text(pre + grid_html + post, encoding="utf-8")
-        print(f"[✓] Successfully injected {len(commands)} pre-rendered subcommands into {html_file.name}")
+        print(f"[OK] Successfully injected {len(commands)} pre-rendered subcommands into {html_file.name}")
     else:
         print("Note: COMMANDS_GRID markers not found in index.html (client JS dynamic hydration active).")
 
@@ -154,7 +154,7 @@ def build_mcp():
         pre = parts[0] + start_tag + "\n"
         post = "\n        " + end_tag + parts[1].split(end_tag)[1]
         html_file.write_text(pre + grid_html + post, encoding="utf-8")
-        print(f"[✓] Successfully injected {len(tools)} pre-rendered tools into {html_file.name}")
+        print(f"[OK] Successfully injected {len(tools)} pre-rendered tools into {html_file.name}")
     else:
         print("Note: TOOLS_GRID markers not found in index.html (client JS dynamic hydration active).")
 
@@ -165,7 +165,7 @@ def build_all():
     print("==================================================================")
     build_cli()
     build_mcp()
-    print("\n[✓] All web portal components successfully validated and built!\n")
+    print("\n[OK] All web portal components successfully validated and built!\n")
 
 
 if __name__ == "__main__":
