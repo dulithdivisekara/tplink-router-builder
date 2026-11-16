@@ -78,7 +78,7 @@ def launch_ink_tui(
 
     env = dict(os.environ)
     existing_py_path = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = f"{pkg_root}:{existing_py_path}" if existing_py_path else pkg_root
+    env["PYTHONPATH"] = f"{pkg_root}{os.pathsep}{existing_py_path}" if existing_py_path else pkg_root
     if not mono and not env.get("NO_COLOR"):
         env.setdefault("FORCE_COLOR", "3")
 

@@ -22,8 +22,12 @@ import os
 import select
 import shutil
 import sys
-import termios
-import tty
+try:
+    import termios
+    import tty
+except ImportError:
+    termios = None  # type: ignore[assignment]
+    tty = None  # type: ignore[assignment]
 from contextlib import redirect_stderr, redirect_stdout
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
@@ -1585,7 +1589,7 @@ def launch_tui(
     Returns an optional command string to hand off to main shell (e.g. 'repl'),
     or None when user exits cleanly after running commands inside the TUI.
     """
-    if not sys.stdin.isatty() or not sys.stdout.isatty():
+    if termios is None or tty is None or not sys.stdin.isatty() or not sys.stdout.isatty():
         return None
 
     runner, poller, toggle_fetcher, toggle_applier = _make_live_callbacks(
@@ -1654,7 +1658,7 @@ def inline_select(
     Inline Ink/Claude-Code style single-choice selector (↑/↓ + Space/Enter).
     options: sequence of (value, label, hint).
     """
-    if not sys.stdin.isatty() or not sys.stdout.isatty() or not options:
+    if termios is None or tty is None or not sys.stdin.isatty() or not sys.stdout.isatty() or not options:
         return None
 
     p = get_palette(mono=mono)
@@ -1708,7 +1712,7 @@ def inline_multiselect(
     Inline Ink/Claude-Code style multi-select checklist (↑/↓ + Space [✔] + Enter).
     options: sequence of (value, label, hint, initial_checked).
     """
-    if not sys.stdin.isatty() or not sys.stdout.isatty() or not options:
+    if termios is None or tty is None or not sys.stdin.isatty() or not sys.stdout.isatty() or not options:
         return None
 
     p = get_palette(mono=mono)
